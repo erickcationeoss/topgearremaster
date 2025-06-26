@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Top Gear Turbo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="game-container" id="game-container">
+        <div class="track" id="track"></div>
+        <div class="particles-container" id="particles"></div>
+        
+        <div class="player-car" id="player-car"></div>
+        <div class="opponents-container" id="opponents"></div>
+        
+        <div class="game-ui">
+            <div class="speedometer">
+                <div class="speed-needle" id="speed-needle"></div>
+                <span class="speed-value" id="speed-value">0</span>
+                <span class="speed-unit">km/h</span>
+            </div>
+            <div class="lap-counter">VOLTA: <span id="lap-counter">1</span>/3</div>
+            <div class="boost-bar">
+                <div class="boost-fill" id="boost-fill"></div>
+            </div>
+        </div>
+        
+        <div class="start-screen" id="start-screen">
+            <h1>TOP GEAR <span>TURBO</span></h1>
+            <div class="start-hint">PRESSIONE <kbd>ENTER</kbd> PARA INICIAR</div>
+        </div>
+    </div>
+
+    <script src="js/particles.js"></script>
+    <script src="js/effects.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>

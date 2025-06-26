@@ -1,0 +1,251 @@
+:root {
+    --player-color: #00A2FF;
+    --opponent-color: #FF2D00;
+    --accent: #FFD700;
+    --dark: #111;
+    --light: #EEE;
+    --road: #333;
+    --rumble: #888;
+    --grass: #0A5C00;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: var(--dark);
+    font-family: 'Press Start 2P', cursive;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+.game-container {
+    position: relative;
+    width: 800px;
+    height: 600px;
+    background: linear-gradient(to bottom, #1a2a6c, #000);
+    overflow: hidden;
+}
+
+.track {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+        linear-gradient(to bottom, transparent 60%, var(--grass) 100%),
+        repeating-linear-gradient(
+            to bottom,
+            var(--road),
+            var(--road) 20px,
+            var(--rumble) 20px,
+            var(--rumble) 40px
+        );
+    transform-origin: bottom center;
+    transform: perspective(300px) rotateX(30deg);
+}
+
+.particles-container {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: var(--accent);
+    border-radius: 50%;
+    opacity: 0.8;
+}
+
+/* Estilização dos carros */
+.player-car {
+    position: absolute;
+    width: 50px;
+    height: 90px;
+    bottom: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--player-color);
+    border-radius: 5px;
+    z-index: 10;
+    box-shadow: 0 0 15px rgba(0, 162, 255, 0.5);
+    transition: transform 0.1s ease-out;
+}
+
+.player-car::before {
+    content: '';
+    position: absolute;
+    top: 10px;
+    left: 5px;
+    right: 5px;
+    height: 15px;
+    background: var(--light);
+    border-radius: 3px;
+}
+
+.player-car::after {
+    content: '';
+    position: absolute;
+    bottom: 10px;
+    left: 5px;
+    right: 5px;
+    height: 5px;
+    background: var(--dark);
+    border-radius: 2px;
+}
+
+.opponent-car {
+    position: absolute;
+    width: 50px;
+    height: 90px;
+    background: var(--opponent-color);
+    border-radius: 5px;
+    z-index: 9;
+    box-shadow: 0 0 10px rgba(255, 45, 0, 0.5);
+}
+
+.opponent-car::before {
+    content: '';
+    position: absolute;
+    top: 10px;
+    left: 5px;
+    right: 5px;
+    height: 15px;
+    background: var(--light);
+    border-radius: 3px;
+}
+
+/* Interface do jogo */
+.game-ui {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    color: var(--light);
+    font-size: 14px;
+    text-shadow: 2px 2px 2px var(--dark);
+}
+
+.speedometer {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    background: rgba(0,0,0,0.7);
+    border-radius: 50%;
+    border: 3px solid var(--accent);
+    margin-bottom: 20px;
+}
+
+.speed-needle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 3px;
+    height: 40px;
+    background: var(--accent);
+    transform-origin: bottom center;
+    transform: translateX(-50%) rotate(-135deg);
+    transition: transform 0.1s ease-out;
+}
+
+.speed-value {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+    color: var(--accent);
+}
+
+.speed-unit {
+    position: absolute;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+}
+
+.lap-counter {
+    background: rgba(0,0,0,0.7);
+    padding: 10px;
+    border-radius: 5px;
+    border: 2px solid var(--accent);
+    margin-bottom: 15px;
+}
+
+.lap-counter span {
+    color: var(--accent);
+}
+
+.boost-bar {
+    width: 100px;
+    height: 10px;
+    background: rgba(0,0,0,0.5);
+    border: 2px solid var(--accent);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.boost-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--accent);
+    transition: width 0.1s;
+}
+
+/* Tela inicial */
+.start-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: var(--light);
+    z-index: 100;
+}
+
+.start-screen h1 {
+    font-size: 72px;
+    margin-bottom: 40px;
+    color: var(--player-color);
+    text-shadow: 5px 5px 0 var(--dark);
+}
+
+.start-screen h1 span {
+    color: var(--accent);
+}
+
+.start-hint {
+    font-size: 18px;
+    animation: pulse 1.5s infinite;
+}
+
+/* Efeitos */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+.speed-effect {
+    animation: shake 0.2s linear infinite;
+}
