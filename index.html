@@ -3,31 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Top Gear 90s Pro</title>
+    <title>Top Gear 90s</title>
     <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Racing+Sans+One&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="game-container" id="game-container">
-        <div class="track" id="track"></div>
-        <div id="particles-container"></div>
+        <div class="road-effect" id="road-effect"></div>
+        <div class="track-container">
+            <div class="track-layer" id="far-layer"></div>
+            <div class="track-layer" id="mid-layer"></div>
+            <div class="track-layer" id="near-layer"></div>
+        </div>
         
-        <div id="player-car" class="vehicle"></div>
+        <div id="particles-container"></div>
         <div id="opponents-container"></div>
+        
+        <div id="player-car" class="vehicle">
+            <div class="car-body">
+                <div class="car-window"></div>
+                <div class="car-headlight"></div>
+                <div class="car-taillight"></div>
+            </div>
+        </div>
         
         <div class="game-ui">
             <div class="speedometer">
-                <div class="speed-needle" id="speed-needle"></div>
                 <div class="speed-value" id="speed-value">0</div>
+                <div class="speed-needle" id="speed-needle"></div>
+                <div class="boost-level" id="boost-level"></div>
             </div>
-            <div class="lap-counter">VOLTA: <span id="lap-counter">1</span>/3</div>
+            
+            <div class="race-info">
+                <div class="lap-counter">VOLTA: <span id="lap-counter">1</span>/3</div>
+                <div class="time-counter" id="time-counter">00:00.00</div>
+                <div class="position-indicator" id="position-indicator">1º</div>
+            </div>
         </div>
         
         <div class="start-screen" id="start-screen">
-            <h1>TOP GEAR TURBO</h1>
+            <h1 class="game-title">TOP GEAR</h1>
+            <h2 class="game-subtitle">90S EDITION</h2>
             <div class="start-hint">PRESSIONE ENTER PARA INICIAR</div>
         </div>
+        
+        <div class="results-screen" id="results-screen">
+            <h2 class="results-title">CORRIDA CONCLUÍDA!</h2>
+            <div class="results-time">TEMPO: <span id="final-time">00:00.00</span></div>
+            <div class="restart-button" id="restart-button">NOVA CORRIDA</div>
+        </div>
     </div>
-
     <script src="script.js"></script>
 </body>
 </html>
