@@ -9,23 +9,12 @@
 </head>
 <body>
     <div class="game-container" id="game-container">
-        <div class="road-effect" id="road-effect"></div>
-        <div class="track-container">
-            <div class="track-layer" id="far-layer"></div>
-            <div class="track-layer" id="mid-layer"></div>
-            <div class="track-layer" id="near-layer"></div>
-        </div>
+        <div class="sky"></div>
+        <div class="road" id="road"></div>
         
-        <div id="particles-container"></div>
         <div id="opponents-container"></div>
-        
-        <div id="player-car" class="vehicle">
-            <div class="car-body">
-                <div class="car-window"></div>
-                <div class="car-headlight"></div>
-                <div class="car-taillight"></div>
-            </div>
-        </div>
+        <div id="player-car" class="vehicle"></div>
+        <div id="particles-container"></div>
         
         <div class="game-ui">
             <div class="speedometer">
@@ -38,6 +27,11 @@
                 <div class="lap-counter">VOLTA: <span id="lap-counter">1</span>/3</div>
                 <div class="time-counter" id="time-counter">00:00.00</div>
                 <div class="position-indicator" id="position-indicator">1º</div>
+                <div class="difficulty">
+                    <button id="easy-btn">FÁCIL</button>
+                    <button id="medium-btn">MÉDIO</button>
+                    <button id="hard-btn">DIFÍCIL</button>
+                </div>
             </div>
         </div>
         
