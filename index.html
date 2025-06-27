@@ -1,23 +1,53 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CSS Bomberman</title>
+    <title>Bomberman Premium</title>
     <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="game-container">
         <canvas id="gameCanvas" width="600" height="600"></canvas>
-        <div class="ui">
-            <div class="score">Score: <span id="score">0</span></div>
-            <div class="bombs">Bombs: <span id="bombs">1</span></div>
-            <div class="lives">Lives: <span id="lives">3</span></div>
-            <button id="startBtn">Start Game</button>
-            <div id="gameOver" class="hidden">GAME OVER</div>
+        
+        <div class="ui-container">
+            <div class="ui-panel">
+                <div class="ui-item">
+                    <span class="ui-label">SCORE</span>
+                    <span id="score" class="ui-value">00000</span>
+                </div>
+                <div class="ui-item">
+                    <span class="ui-label">BOMBS</span>
+                    <span id="bombs" class="ui-value">1/3</span>
+                </div>
+                <div class="ui-item">
+                    <span class="ui-label">LIVES</span>
+                    <span id="lives" class="ui-value">♥♥♥</span>
+                </div>
+            </div>
+            
+            <button id="startBtn" class="pixel-button">START GAME</button>
+        </div>
+        
+        <div id="gameOver" class="game-message hidden">
+            <div>GAME OVER</div>
+            <div class="final-score">SCORE: <span id="finalScore">0</span></div>
+        </div>
+        
+        <div id="levelComplete" class="game-message hidden">
+            <div>LEVEL COMPLETE!</div>
+            <div class="bonus-points">+500 BONUS</div>
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <audio id="explosionSound" preload="auto">
+        <source src="https://assets.mixkit.co/sfx/preview/mixkit-explosion-1684.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="placeBombSound" preload="auto">
+        <source src="https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-jump-coin-216.mp3" type="audio/mpeg">
+    </audio>
+
+    <script src="game.js"></script>
 </body>
 </html>
