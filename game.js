@@ -207,56 +207,79 @@ class BombermanGame {
         });
     }
     
-    updatePlayer() {
-        if (this.player.invincible > 0) {
-            this.player.invincible -= this.deltaTime;
-        }
-        
-        const speed = this.player.speed * this.deltaTime;
-        let newX = this.player.x;
-        let newY = this.player.y;
-        
-        // Movement input
-        if (this.keys['arrowright'] || this.keys['d']) {
-            newX += speed;
-            this.player.direction = 0;
-        }
-        if (this.keys['arrowleft'] || this.keys['a']) {
-            newX -= speed;
-            this.player.direction = 2;
-        }
-        if (this.keys['arrowdown'] || this.keys['s']) {
-            newY += speed;
-            this.player.direction = 1;
-        }
-        if (this.keys['arrowup'] || this.keys['w']) {
-            newY -= speed;
-            this.player.direction = 3;
-        }
-        
-        // Collision checks
-        const gridX = Math.round(newX);
-        const gridY = Math.round(this.player.y);
-        const canMoveX = !this.isWall(gridX, Math.floor(this.player.y)) && 
-                        !this.isWall(gridX, Math.ceil(this.player.y)) &&
-                        !(this.isBomb(gridX, gridY) && Math.round(this.player.x) === gridX);
-        
-        const canMoveY = !this.isWall(Math.round(this.player.x), Math.round(newY)) && 
-                        !(this.isBomb(Math.round(this.player.x), Math.round(newY)) && 
-                        Math.round(this.player.y) === Math.round(newY));
-        
-        if (canMoveX) this.player.x = Math.max(0.5, Math.min(this.gridSize - 1.5, newX));
-        if (canMoveY) this.player.y = Math.max(0.5, Math.min(this.gridSize - 1.5, newY));
-        
-        // Check explosions
-        if (this.player.invincible <= 0) {
-            const px = Math.round(this.player.x);
-            const py = Math.round(this.player.y);
-            if (this.explosions.some(e => e.x === px && e.y === py)) {
-                this.playerHit();
-            }
+updatePlayer() {
+    if (this.player.invincible > 0) {
+        this.player.invincible -= this.deltaTime;
+    }
+
+    const speed = this.player.speed * this.deltaTime;
+    let newX = this.player.x;
+    let newY = this.player.y;
+    
+    // Movement input
+    if (this.keys['arrowright'] || this.keys['d']) {
+        newX += speed;
+        this.player.direction = 0;
+    }
+    if (this.keys['arrowleft'] || this.keys['a']) {
+        newX -= speed;
+        this.player.direction = 2;
+    }
+    if (this.keys['arrowdown'] || this.keys['s']) {
+        newY += speed;
+        this.player.direction = 1;
+    }
+    if (this.keys['arrowup'] || this.keys['w']) {
+        newY -= speed;
+        this.player.direction = 3;
+    }
+
+    // Collision checks
+    const playerGridX = Math.round(this.player.x);
+    const playerGridY = Math.round(this.player.y);
+    const newGridX = Math.round(newX);
+    const newGridY = Math.round(newY);
+
+    // Check if we're moving to a new grid cell
+    const isMovingToNewCell = (playerGridX !== newGridX) || (playerGridY !== newGridY);
+
+    // Allow movement if:
+    // 1. We're not moving to a new cell (just moving within current cell)
+    // OR
+    // 2. The new cell is not blocked by a wall or bomb (unless it's our own bomb that we're standing on)
+    const canMoveX = !isMovingToNewCell || 
+                    !(this.isWall(newGridX, playerGridY) && 
+                    !(this.isBomb(newGridX, playerGridY) && 
+                    !(this.isBomb(playerGridX, playerGridY) && newGridX !== playerGridX));
+
+    const canMoveY = !isMovingToNewCell || 
+                    (!this.isWall(playerGridX, newGridY) && 
+                    !(this.isBomb(playerGridX, newGridY) && 
+                    !(this.isBomb(playerGridX, playerGridY) && newGridY !== playerGridY)));
+
+    // Special case: allow moving away from the bomb you're standing on
+    const standingOnBomb = this.isBomb(playerGridX, playerGridY);
+    if (standingOnBomb) {
+        // If trying to move away from the bomb, allow movement
+        if (Math.round(newX) !== playerGridX || Math.round(newY) !== playerGridY) {
+            this.player.x = Math.max(0.5, Math.min(this.gridSize - 1.5, newX));
+            this.player.y = Math.max(0.5, Math.min(this.gridSize - 1.5, newY));
+            return;
         }
     }
+
+    if (canMoveX) this.player.x = Math.max(0.5, Math.min(this.gridSize - 1.5, newX));
+    if (canMoveY) this.player.y = Math.max(0.5, Math.min(this.gridSize - 1.5, newY));
+
+    // Check explosions
+    if (this.player.invincible <= 0) {
+        const px = Math.round(this.player.x);
+        const py = Math.round(this.player.y);
+        if (this.explosions.some(e => e.x === px && e.y === py)) {
+            this.playerHit();
+        }
+    }
+}
     
     playerHit() {
         this.player.lives--;
