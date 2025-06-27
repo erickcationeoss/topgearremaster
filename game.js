@@ -5,14 +5,11 @@ class BombermanGame {
         this.gridSize = 13;
         this.cellSize = this.canvas.width / this.gridSize;
         
-        // Game state
         this.gameRunning = false;
         this.level = 1;
         this.lastTime = 0;
         this.deltaTime = 0;
-        this.animationId = null;
         
-        // Game elements
         this.player = null;
         this.bombs = [];
         this.explosions = [];
@@ -20,7 +17,6 @@ class BombermanGame {
         this.walls = [];
         this.breakableWalls = [];
         
-        // Controls
         this.keys = {};
         
         this.init();
@@ -97,8 +93,6 @@ class BombermanGame {
         document.getElementById('finalScore').textContent = this.player.score.toString().padStart(5, '0');
         document.getElementById('gameOver').classList.remove('hidden');
         document.getElementById('startBtn').classList.remove('hidden');
-        
-        cancelAnimationFrame(this.animationId);
     }
     
     levelComplete() {
@@ -106,8 +100,6 @@ class BombermanGame {
         this.level++;
         
         document.getElementById('levelComplete').classList.remove('hidden');
-        document.getElementById('bonus-points').textContent = `+500 BONUS`;
-        
         setTimeout(() => {
             document.getElementById('levelComplete').classList.add('hidden');
             this.resetGame();
@@ -165,8 +157,7 @@ class BombermanGame {
                 y,
                 speed: 0.5 + Math.random() * 0.5,
                 direction: Math.floor(Math.random() * 4),
-                moveTimer: 0,
-                animationTimer: 0
+                moveTimer: 0
             });
         }
     }
@@ -202,84 +193,76 @@ class BombermanGame {
             x,
             y,
             timer: 180,
-            range: this.player.bombRange,
-            animationTimer: 0
+            range: this.player.bombRange
         });
     }
     
-updatePlayer() {
-    if (this.player.invincible > 0) {
-        this.player.invincible -= this.deltaTime;
-    }
-
-    const speed = this.player.speed * this.deltaTime;
-    let newX = this.player.x;
-    let newY = this.player.y;
-    
-    // Movement input
-    if (this.keys['arrowright'] || this.keys['d']) {
-        newX += speed;
-        this.player.direction = 0;
-    }
-    if (this.keys['arrowleft'] || this.keys['a']) {
-        newX -= speed;
-        this.player.direction = 2;
-    }
-    if (this.keys['arrowdown'] || this.keys['s']) {
-        newY += speed;
-        this.player.direction = 1;
-    }
-    if (this.keys['arrowup'] || this.keys['w']) {
-        newY -= speed;
-        this.player.direction = 3;
-    }
-
-    // Collision checks
-    const playerGridX = Math.round(this.player.x);
-    const playerGridY = Math.round(this.player.y);
-    const newGridX = Math.round(newX);
-    const newGridY = Math.round(newY);
-
-    // Check if we're moving to a new grid cell
-    const isMovingToNewCell = (playerGridX !== newGridX) || (playerGridY !== newGridY);
-
-    // Allow movement if:
-    // 1. We're not moving to a new cell (just moving within current cell)
-    // OR
-    // 2. The new cell is not blocked by a wall or bomb (unless it's our own bomb that we're standing on)
-    const canMoveX = !isMovingToNewCell || 
-                    !(this.isWall(newGridX, playerGridY) && 
-                    !(this.isBomb(newGridX, playerGridY) && 
-                    !(this.isBomb(playerGridX, playerGridY) && newGridX !== playerGridX));
-
-    const canMoveY = !isMovingToNewCell || 
-                    (!this.isWall(playerGridX, newGridY) && 
-                    !(this.isBomb(playerGridX, newGridY) && 
-                    !(this.isBomb(playerGridX, playerGridY) && newGridY !== playerGridY)));
-
-    // Special case: allow moving away from the bomb you're standing on
-    const standingOnBomb = this.isBomb(playerGridX, playerGridY);
-    if (standingOnBomb) {
-        // If trying to move away from the bomb, allow movement
-        if (Math.round(newX) !== playerGridX || Math.round(newY) !== playerGridY) {
-            this.player.x = Math.max(0.5, Math.min(this.gridSize - 1.5, newX));
-            this.player.y = Math.max(0.5, Math.min(this.gridSize - 1.5, newY));
-            return;
+    updatePlayer() {
+        if (this.player.invincible > 0) {
+            this.player.invincible -= this.deltaTime;
+        }
+        
+        const speed = this.player.speed * this.deltaTime;
+        let newX = this.player.x;
+        let newY = this.player.y;
+        
+        // Movement input
+        if (this.keys['arrowright'] || this.keys['d']) {
+            newX += speed;
+            this.player.direction = 0;
+        }
+        if (this.keys['arrowleft'] || this.keys['a']) {
+            newX -= speed;
+            this.player.direction = 2;
+        }
+        if (this.keys['arrowdown'] || this.keys['s']) {
+            newY += speed;
+            this.player.direction = 1;
+        }
+        if (this.keys['arrowup'] || this.keys['w']) {
+            newY -= speed;
+            this.player.direction = 3;
+        }
+        
+        // Collision checks
+        const playerGridX = Math.round(this.player.x);
+        const playerGridY = Math.round(this.player.y);
+        const newGridX = Math.round(newX);
+        const newGridY = Math.round(newY);
+        
+        // Check if we're moving to a new cell
+        const isMovingToNewCell = (playerGridX !== newGridX) || (playerGridY !== newGridY);
+        
+        // Special case: allow moving away from bomb you just placed
+        const standingOnBomb = this.isBomb(playerGridX, playerGridY);
+        
+        if (standingOnBomb && isMovingToNewCell) {
+            // Allow movement away from bomb
+            this.player.x = newX;
+            this.player.y = newY;
+        } else {
+            // Normal collision checks
+            const canMoveX = !isMovingToNewCell || 
+                           (!this.isWall(newGridX, playerGridY) && 
+                            !this.isBomb(newGridX, playerGridY));
+            
+            const canMoveY = !isMovingToNewCell || 
+                           (!this.isWall(playerGridX, newGridY) && 
+                            !this.isBomb(playerGridX, newGridY));
+            
+            if (canMoveX) this.player.x = Math.max(0.5, Math.min(this.gridSize - 1.5, newX));
+            if (canMoveY) this.player.y = Math.max(0.5, Math.min(this.gridSize - 1.5, newY));
+        }
+        
+        // Check explosions
+        if (this.player.invincible <= 0) {
+            const px = Math.round(this.player.x);
+            const py = Math.round(this.player.y);
+            if (this.explosions.some(e => e.x === px && e.y === py)) {
+                this.playerHit();
+            }
         }
     }
-
-    if (canMoveX) this.player.x = Math.max(0.5, Math.min(this.gridSize - 1.5, newX));
-    if (canMoveY) this.player.y = Math.max(0.5, Math.min(this.gridSize - 1.5, newY));
-
-    // Check explosions
-    if (this.player.invincible <= 0) {
-        const px = Math.round(this.player.x);
-        const py = Math.round(this.player.y);
-        if (this.explosions.some(e => e.x === px && e.y === py)) {
-            this.playerHit();
-        }
-    }
-}
     
     playerHit() {
         this.player.lives--;
@@ -295,7 +278,6 @@ updatePlayer() {
         for (let i = this.bombs.length - 1; i >= 0; i--) {
             const bomb = this.bombs[i];
             bomb.timer -= this.deltaTime * 60;
-            bomb.animationTimer += this.deltaTime;
             
             if (bomb.timer <= 0) {
                 this.explodeBomb(bomb);
@@ -365,7 +347,6 @@ updatePlayer() {
     
     updateEnemies() {
         this.enemies.forEach(enemy => {
-            enemy.animationTimer += this.deltaTime;
             enemy.moveTimer -= this.deltaTime * 60;
             
             if (enemy.moveTimer <= 0) {
@@ -478,17 +459,11 @@ updatePlayer() {
     }
     
     drawBombs() {
-        this.bombs.forEach(b => {
-            const centerX = (b.x + 0.5) * this.cellSize;
-            const centerY = (b.y + 0.5) * this.cellSize;
-            const pulse = 1 + Math.sin(b.animationTimer * 10) * 0.05;
+        this.bombs.forEach(bomb => {
+            const centerX = (bomb.x + 0.5) * this.cellSize;
+            const centerY = (bomb.y + 0.5) * this.cellSize;
             
-            this.ctx.save();
-            this.ctx.translate(centerX, centerY);
-            this.ctx.scale(pulse, pulse);
-            this.ctx.translate(-centerX, -centerY);
-            
-            // Bomb
+            // Bomb body
             this.ctx.fillStyle = '#333';
             this.ctx.beginPath();
             this.ctx.arc(centerX, centerY, this.cellSize * 0.35, 0, Math.PI * 2);
@@ -507,9 +482,7 @@ updatePlayer() {
             this.ctx.font = `bold ${this.cellSize * 0.25}px Arial`;
             this.ctx.textAlign = 'center';
             this.ctx.textBaseline = 'middle';
-            this.ctx.fillText(Math.ceil(b.timer / 60), centerX, centerY);
-            
-            this.ctx.restore();
+            this.ctx.fillText(Math.ceil(bomb.timer / 60), centerX, centerY);
         });
     }
     
@@ -538,12 +511,11 @@ updatePlayer() {
         this.enemies.forEach(enemy => {
             const centerX = (enemy.x + 0.5) * this.cellSize;
             const centerY = (enemy.y + 0.5) * this.cellSize;
-            const floatOffset = Math.sin(enemy.animationTimer * 5) * 3;
             
             // Body
             this.ctx.fillStyle = '#F44336';
             this.ctx.beginPath();
-            this.ctx.arc(centerX, centerY + floatOffset, this.cellSize * 0.35, 0, Math.PI * 2);
+            this.ctx.arc(centerX, centerY, this.cellSize * 0.35, 0, Math.PI * 2);
             this.ctx.fill();
             
             // Eyes
@@ -551,14 +523,14 @@ updatePlayer() {
             this.ctx.beginPath();
             this.ctx.arc(
                 centerX - this.cellSize * 0.15, 
-                centerY - this.cellSize * 0.1 + floatOffset, 
+                centerY - this.cellSize * 0.1, 
                 this.cellSize * 0.08, 
                 0, 
                 Math.PI * 2
             );
             this.ctx.arc(
                 centerX + this.cellSize * 0.15, 
-                centerY - this.cellSize * 0.1 + floatOffset, 
+                centerY - this.cellSize * 0.1, 
                 this.cellSize * 0.08, 
                 0, 
                 Math.PI * 2
@@ -571,7 +543,7 @@ updatePlayer() {
             this.ctx.beginPath();
             this.ctx.arc(
                 centerX, 
-                centerY + this.cellSize * 0.1 + floatOffset, 
+                centerY + this.cellSize * 0.1, 
                 this.cellSize * 0.15, 
                 0.1 * Math.PI, 
                 0.9 * Math.PI
@@ -583,11 +555,6 @@ updatePlayer() {
     drawPlayer() {
         const centerX = (this.player.x + 0.5) * this.cellSize;
         const centerY = (this.player.y + 0.5) * this.cellSize;
-        const isMoving = this.keys['arrowright'] || this.keys['arrowleft'] || 
-                        this.keys['arrowup'] || this.keys['arrowdown'] ||
-                        this.keys['a'] || this.keys['d'] || 
-                        this.keys['w'] || this.keys['s'];
-        const bounce = isMoving ? Math.sin(performance.now() * 0.01) * 3 : 0;
         
         if (this.player.invincible > 0 && Math.floor(this.player.invincible * 10) % 2 === 0) {
             this.ctx.globalAlpha = 0.5;
@@ -596,31 +563,35 @@ updatePlayer() {
         // Body
         this.ctx.fillStyle = '#2196F3';
         this.ctx.beginPath();
-        this.ctx.arc(centerX, centerY + bounce, this.cellSize * 0.35, 0, Math.PI * 2);
+        this.ctx.arc(centerX, centerY, this.cellSize * 0.35, 0, Math.PI * 2);
         this.ctx.fill();
         
         // Face
         this.ctx.fillStyle = '#BBDEFB';
         this.ctx.beginPath();
-        this.ctx.arc(centerX, centerY - this.cellSize * 0.1 + bounce, this.cellSize * 0.25, 0, Math.PI * 2);
+        this.ctx.arc(centerX, centerY - this.cellSize * 0.1, this.cellSize * 0.25, 0, Math.PI * 2);
         this.ctx.fill();
         
         // Eyes
         this.ctx.fillStyle = '#000';
+        const isMoving = this.keys['arrowright'] || this.keys['arrowleft'] || 
+                        this.keys['arrowup'] || this.keys['arrowdown'] ||
+                        this.keys['a'] || this.keys['d'] || 
+                        this.keys['w'] || this.keys['s'];
         const blink = isMoving ? Math.sin(performance.now() * 0.01) > 0.7 ? 0 : 1 : 1;
         
         if (blink) {
             this.ctx.beginPath();
             this.ctx.arc(
                 centerX - this.cellSize * 0.08, 
-                centerY - this.cellSize * 0.12 + bounce, 
+                centerY - this.cellSize * 0.12, 
                 this.cellSize * 0.05, 
                 0, 
                 Math.PI * 2
             );
             this.ctx.arc(
                 centerX + this.cellSize * 0.08, 
-                centerY - this.cellSize * 0.12 + bounce, 
+                centerY - this.cellSize * 0.12, 
                 this.cellSize * 0.05, 
                 0, 
                 Math.PI * 2
@@ -629,7 +600,7 @@ updatePlayer() {
         } else {
             this.ctx.fillRect(
                 centerX - this.cellSize * 0.1,
-                centerY - this.cellSize * 0.1 + bounce,
+                centerY - this.cellSize * 0.1,
                 this.cellSize * 0.2,
                 this.cellSize * 0.03
             );
@@ -641,7 +612,7 @@ updatePlayer() {
         this.ctx.beginPath();
         this.ctx.arc(
             centerX, 
-            centerY + bounce, 
+            centerY, 
             this.cellSize * 0.1, 
             0.2 * Math.PI, 
             0.8 * Math.PI
@@ -664,7 +635,7 @@ updatePlayer() {
             this.draw();
         }
         
-        this.animationId = requestAnimationFrame(t => this.gameLoop(t));
+        requestAnimationFrame(t => this.gameLoop(t));
     }
 }
 
