@@ -1,62 +1,68 @@
-class Game {
+class BombermanGame {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
         this.gridSize = 13;
         this.cellSize = this.canvas.width / this.gridSize;
+        
+        // Otimização: Pré-calcular posições
+        this.canvasWidth = this.canvas.width;
+        this.canvasHeight = this.canvas.height;
+        
+        // Game state
+        this.gameRunning = false;
+        this.level = 1;
         this.lastTime = 0;
         this.deltaTime = 0;
         this.animationId = null;
-        this.gameRunning = false;
-        this.level = 1;
         
         // Game elements
-        this.player = null;
-        this.bombs = [];
-        this.explosions = [];
-        this.enemies = [];
-        this.walls = [];
-        this.breakableWalls = [];
-        this.powerUps = [];
+        this.resetGame();
         
-        // Sounds
+        // Controls
+        this.keys = {};
+        this.setupControls();
+        
+        // Audio
         this.sounds = {
             explosion: document.getElementById('explosionSound'),
             placeBomb: document.getElementById('placeBombSound')
         };
         
-        // Controls
-        this.keys = {};
-        
-        this.init();
+        // Otimização: Pré-carregar assets
+        this.preloadAssets();
     }
     
-    init() {
-        this.setupControls();
-        this.setupUI();
-        this.resetGame();
+    preloadAssets() {
+        // Configuração de áudio para melhor performance
+        this.sounds.explosion.volume = 0.3;
+        this.sounds.placeBomb.volume = 0.5;
+        this.sounds.explosion.load();
+        this.sounds.placeBomb.load();
     }
     
     setupControls() {
+        // Controles mais responsivos
         window.addEventListener('keydown', (e) => {
-            this.keys[e.key.toLowerCase()] = true;
-            if (e.key === ' ' && this.gameRunning) {
-                this.placeBomb();
+            const key = e.key.toLowerCase();
+            if (key === ' ') {
+                if (this.gameRunning) this.placeBomb();
+                e.preventDefault();
+            } else if (['arrowright', 'arrowleft', 'arrowup', 'arrowdown', 'w', 'a', 's', 'd'].includes(key)) {
+                this.keys[key] = true;
                 e.preventDefault();
             }
         });
         
         window.addEventListener('keyup', (e) => {
-            this.keys[e.key.toLowerCase()] = false;
+            const key = e.key.toLowerCase();
+            if (['arrowright', 'arrowleft', 'arrowup', 'arrowdown', 'w', 'a', 's', 'd'].includes(key)) {
+                this.keys[key] = false;
+                e.preventDefault();
+            }
         });
         
-        document.getElementById('startBtn').addEventListener('click', () => {
-            if (!this.gameRunning) this.startGame();
-        });
-    }
-    
-    setupUI() {
-        this.updateUI();
+        document.getElementById('startBtn').addEventListener('click', () => this.startGame());
     }
     
     resetGame() {
@@ -70,7 +76,8 @@ class Game {
             lives: 3,
             score: 0,
             invincible: 0,
-            direction: 0
+            direction: 0,
+            moving: false
         };
         
         this.bombs = [];
@@ -81,48 +88,17 @@ class Game {
         this.powerUps = [];
         
         this.generateLevel();
-        this.spawnEnemies(3 + this.level);
-    }
-    
-    startGame() {
-        this.resetGame();
-        this.gameRunning = true;
-        document.getElementById('startBtn').classList.add('hidden');
-        document.getElementById('gameOver').classList.add('hidden');
-        document.getElementById('levelComplete').classList.add('hidden');
-        this.lastTime = performance.now();
-        this.gameLoop(this.lastTime);
-    }
-    
-    gameOver() {
-        this.gameRunning = false;
-        document.getElementById('finalScore').textContent = this.player.score.toString().padStart(5, '0');
-        document.getElementById('gameOver').classList.remove('hidden');
-        document.getElementById('startBtn').classList.remove('hidden');
-        cancelAnimationFrame(this.animationId);
-    }
-    
-    levelComplete() {
-        this.player.score += 500;
-        this.level++;
-        document.getElementById('levelComplete').classList.remove('hidden');
-        document.getElementById('bonus-points').textContent = `+500 BONUS`;
+        this.spawnEnemies(3 + Math.floor(this.level * 0.5));
         
-        setTimeout(() => {
-            document.getElementById('levelComplete').classList.add('hidden');
-            this.resetGame();
-            this.updateUI();
-        }, 2000);
-    }
-    
-    updateUI() {
-        document.getElementById('score').textContent = this.player.score.toString().padStart(5, '0');
-        document.getElementById('bombs').textContent = `${this.player.bombs}/${this.player.maxBombs}`;
-        document.getElementById('lives').textContent = '♥'.repeat(this.player.lives);
+        this.updateUI();
     }
     
     generateLevel() {
-        // Border walls
+        // Limpar paredes existentes
+        this.walls = [];
+        this.breakableWalls = [];
+        
+        // Paredes externas
         for (let y = 0; y < this.gridSize; y++) {
             for (let x = 0; x < this.gridSize; x++) {
                 if (x === 0 || y === 0 || x === this.gridSize - 1 || y === this.gridSize - 1) {
@@ -131,17 +107,27 @@ class Game {
             }
         }
         
-        // Fixed pattern walls
+        // Padrão de paredes fixas
         for (let y = 2; y < this.gridSize - 2; y += 2) {
             for (let x = 2; x < this.gridSize - 2; x += 2) {
                 this.walls.push({x, y});
             }
         }
         
-        // Breakable walls
+        // Paredes destrutíveis com caminho garantido
+        const safePaths = [
+            {x: 1, y: 1}, {x: 2, y: 1}, {x: 1, y: 2}, // Área inicial do jogador
+            {x: this.gridSize - 2, y: this.gridSize - 2}, // Área dos inimigos
+            {x: Math.floor(this.gridSize/2), y: Math.floor(this.gridSize/2)} // Centro
+        ];
+        
         for (let y = 1; y < this.gridSize - 1; y++) {
             for (let x = 1; x < this.gridSize - 1; x++) {
-                if (!this.isWall(x, y) && !this.isPlayerStartArea(x, y) && Math.random() < 0.5) {
+                // Não colocar paredes em áreas seguras ou onde já existem paredes
+                if (!this.isWall(x, y) && 
+                    !safePaths.some(p => p.x === x && p.y === y) &&
+                    !this.isPlayerStartArea(x, y) && 
+                    Math.random() < 0.45) {
                     this.breakableWalls.push({x, y});
                 }
             }
@@ -153,47 +139,112 @@ class Game {
     }
     
     spawnEnemies(count) {
+        const enemyPositions = [
+            {x: this.gridSize - 2, y: this.gridSize - 2},
+            {x: this.gridSize - 2, y: 1},
+            {x: 1, y: this.gridSize - 2},
+            {x: Math.floor(this.gridSize/2), y: Math.floor(this.gridSize/2)}
+        ];
+        
         for (let i = 0; i < count; i++) {
-            let x, y;
-            do {
-                x = Math.floor(Math.random() * (this.gridSize - 4)) + 2;
-                y = Math.floor(Math.random() * (this.gridSize - 4)) + 2;
-            } while (this.isOccupied(x, y));
+            const pos = enemyPositions[i % enemyPositions.length];
+            let x = pos.x;
+            let y = pos.y;
             
-            this.enemies.push({
-                x,
-                y,
-                speed: 0.5 + Math.random() * 0.5,
-                direction: Math.floor(Math.random() * 4),
-                moveTimer: 0,
-                animationTimer: 0
-            });
+            // Se a posição estiver ocupada, encontrar uma próxima disponível
+            if (this.isOccupied(x, y)) {
+                let found = false;
+                for (let r = 1; r < this.gridSize/2 && !found; r++) {
+                    for (let dir = 0; dir < 4 && !found; dir++) {
+                        const nx = x + [1, -1, 0, 0][dir] * r;
+                        const ny = y + [0, 0, 1, -1][dir] * r;
+                        if (nx > 0 && nx < this.gridSize - 1 && ny > 0 && ny < this.gridSize - 1 && !this.isOccupied(nx, ny)) {
+                            x = nx;
+                            y = ny;
+                            found = true;
+                        }
+                    }
+                }
+            }
+            
+            if (!this.isOccupied(x, y)) {
+                this.enemies.push({
+                    x,
+                    y,
+                    speed: 0.5 + Math.random() * 0.5,
+                    direction: Math.floor(Math.random() * 4),
+                    moveTimer: Math.random() * 60,
+                    animationTimer: 0
+                });
+            }
         }
+    }
+    
+    startGame() {
+        if (this.gameRunning) return;
+        
+        this.resetGame();
+        this.gameRunning = true;
+        document.getElementById('startBtn').classList.add('hidden');
+        document.getElementById('gameOver').classList.add('hidden');
+        document.getElementById('levelComplete').classList.add('hidden');
+        
+        this.lastTime = performance.now();
+        this.gameLoop(this.lastTime);
+    }
+    
+    gameOver() {
+        this.gameRunning = false;
+        document.getElementById('finalScore').textContent = this.player.score.toString().padStart(5, '0');
+        document.getElementById('gameOver').classList.remove('hidden');
+        document.getElementById('startBtn').classList.remove('hidden');
+        
+        cancelAnimationFrame(this.animationId);
+    }
+    
+    levelComplete() {
+        this.player.score += 500;
+        this.level++;
+        
+        document.getElementById('levelComplete').classList.remove('hidden');
+        document.getElementById('bonus-points').textContent = `+500 BONUS`;
+        
+        setTimeout(() => {
+            document.getElementById('levelComplete').classList.add('hidden');
+            this.resetGame();
+        }, 2000);
+    }
+    
+    updateUI() {
+        document.getElementById('score').textContent = this.player.score.toString().padStart(5, '0');
+        document.getElementById('bombs').textContent = `${this.player.bombs}/${this.player.maxBombs}`;
+        document.getElementById('lives').textContent = '♥'.repeat(this.player.lives);
     }
     
     isOccupied(x, y) {
         return this.isWall(x, y) || this.isBreakableWall(x, y) || 
-               (this.player.x === x && this.player.y === y) || 
-               this.enemies.some(e => e.x === x && e.y === y);
+               this.isBomb(x, y) || 
+               (Math.round(this.player.x) === x && Math.round(this.player.y) === y) || 
+               this.enemies.some(e => Math.round(e.x) === x && Math.round(e.y) === y);
     }
     
     isWall(x, y) {
-        return this.walls.some(w => w.x === x && w.y === y);
+        return this.walls.some(w => w.x === Math.floor(x) && w.y === Math.floor(y));
     }
     
     isBreakableWall(x, y) {
-        return this.breakableWalls.some(w => w.x === x && w.y === y);
+        return this.breakableWalls.some(w => w.x === Math.floor(x) && w.y === Math.floor(y));
     }
     
     isBomb(x, y) {
-        return this.bombs.some(b => b.x === x && b.y === y);
+        return this.bombs.some(b => b.x === Math.floor(x) && b.y === Math.floor(y));
     }
     
     placeBomb() {
         if (this.bombs.length >= this.player.maxBombs) return;
         
-        const x = Math.round(this.player.x);
-        const y = Math.round(this.player.y);
+        const x = Math.floor(this.player.x);
+        const y = Math.floor(this.player.y);
         
         if (this.isBomb(x, y)) return;
         
@@ -218,44 +269,49 @@ class Game {
         let newX = this.player.x;
         let newY = this.player.y;
         
+        // Movimento mais fluido com aceleração
         if (this.keys['arrowright'] || this.keys['d']) {
             newX += speed;
             this.player.direction = 0;
-        }
-        if (this.keys['arrowleft'] || this.keys['a']) {
+            this.player.moving = true;
+        } 
+        else if (this.keys['arrowleft'] || this.keys['a']) {
             newX -= speed;
             this.player.direction = 2;
-        }
-        if (this.keys['arrowdown'] || this.keys['s']) {
+            this.player.moving = true;
+        } 
+        else if (this.keys['arrowdown'] || this.keys['s']) {
             newY += speed;
             this.player.direction = 1;
-        }
-        if (this.keys['arrowup'] || this.keys['w']) {
+            this.player.moving = true;
+        } 
+        else if (this.keys['arrowup'] || this.keys['w']) {
             newY -= speed;
             this.player.direction = 3;
+            this.player.moving = true;
+        } else {
+            this.player.moving = false;
         }
         
-        // Collision checks
-        const canMoveX = !this.isWall(Math.round(newX), Math.floor(this.player.y)) && 
-                        !this.isWall(Math.round(newX), Math.ceil(this.player.y)) &&
-                        !(this.isBomb(Math.round(newX), Math.round(this.player.y)) && 
-                          Math.round(this.player.x) === Math.round(newX));
+        // Verificação de colisão otimizada
+        const canMoveHorizontally = !this.isWall(newX, this.player.y) && !this.isBreakableWall(newX, this.player.y);
+        const canMoveVertically = !this.isWall(this.player.x, newY) && !this.isBreakableWall(this.player.x, newY);
         
-        const canMoveY = !this.isWall(Math.floor(this.player.x), Math.round(newY)) && 
-                        !this.isWall(Math.ceil(this.player.x), Math.round(newY)) &&
-                        !(this.isBomb(Math.round(this.player.x), Math.round(newY)) && 
-                          Math.round(this.player.y) === Math.round(newY));
+        // Movimento mais suave ao passar entre células
+        if (canMoveHorizontally) {
+            this.player.x = Math.max(0.5, Math.min(this.gridSize - 1.5, newX));
+        }
         
-        if (canMoveX) this.player.x = Math.max(0.5, Math.min(this.gridSize - 1.5, newX));
-        if (canMoveY) this.player.y = Math.max(0.5, Math.min(this.gridSize - 1.5, newY));
+        if (canMoveVertically) {
+            this.player.y = Math.max(0.5, Math.min(this.gridSize - 1.5, newY));
+        }
         
-        // Check explosions
-        if (this.player.invincible <= 0) {
-            const px = Math.round(this.player.x);
-            const py = Math.round(this.player.y);
-            if (this.explosions.some(e => e.x === px && e.y === py)) {
-                this.playerHit();
-            }
+        // Verificar se está em uma explosão
+        if (this.player.invincible <= 0 && 
+            this.explosions.some(e => 
+                Math.floor(e.x) === Math.floor(this.player.x) && 
+                Math.floor(e.y) === Math.floor(this.player.y))) {
+            this.playerHit();
         }
     }
     
@@ -285,7 +341,7 @@ class Game {
     explodeBomb(bomb) {
         this.createExplosion(bomb.x, bomb.y);
         
-        // Explode in 4 directions
+        // Explodir em 4 direções
         const directions = [
             {dx: 1, dy: 0}, {dx: -1, dy: 0}, 
             {dx: 0, dy: 1}, {dx: 0, dy: -1}
@@ -300,16 +356,20 @@ class Game {
                 
                 this.createExplosion(nx, ny);
                 
-                // Check breakable walls
+                // Verificar paredes destrutíveis
                 const wallIdx = this.breakableWalls.findIndex(w => w.x === nx && w.y === ny);
                 if (wallIdx !== -1) {
                     this.breakableWalls.splice(wallIdx, 1);
                     this.player.score += 10;
-                    if (Math.random() < 0.2) this.spawnPowerUp(nx, ny);
+                    
+                    // 20% de chance de dropar power-up
+                    if (Math.random() < 0.2) {
+                        this.spawnPowerUp(nx, ny);
+                    }
                     break;
                 }
                 
-                // Chain reaction
+                // Reação em cadeia com outras bombas
                 const bombIdx = this.bombs.findIndex(b => b.x === nx && b.y === ny);
                 if (bombIdx !== -1) {
                     this.explodeBomb(this.bombs[bombIdx]);
@@ -330,14 +390,14 @@ class Game {
             size: 0
         });
         
-        // Check player
-        if (Math.round(this.player.x) === x && Math.round(this.player.y) === y && this.player.invincible <= 0) {
+        // Verificar se atingiu o jogador
+        if (Math.floor(this.player.x) === x && Math.floor(this.player.y) === y && this.player.invincible <= 0) {
             this.playerHit();
         }
         
-        // Check enemies
+        // Verificar se atingiu inimigos
         for (let i = this.enemies.length - 1; i >= 0; i--) {
-            if (Math.round(this.enemies[i].x) === x && Math.round(this.enemies[i].y) === y) {
+            if (Math.floor(this.enemies[i].x) === x && Math.floor(this.enemies[i].y) === y) {
                 this.enemies.splice(i, 1);
                 this.player.score += 100;
                 this.updateUI();
@@ -360,7 +420,7 @@ class Game {
             const p = this.powerUps[i];
             p.animationTimer += this.deltaTime;
             
-            if (Math.round(this.player.x) === p.x && Math.round(this.player.y) === p.y) {
+            if (Math.floor(this.player.x) === p.x && Math.floor(this.player.y) === p.y) {
                 this.collectPowerUp(p);
                 this.powerUps.splice(i, 1);
             }
@@ -388,6 +448,7 @@ class Game {
             enemy.animationTimer += this.deltaTime;
             enemy.moveTimer -= this.deltaTime * 60;
             
+            // Mudar direção aleatoriamente
             if (enemy.moveTimer <= 0) {
                 enemy.direction = Math.floor(Math.random() * 4);
                 enemy.moveTimer = 60 + Math.random() * 60;
@@ -397,29 +458,28 @@ class Game {
             let newX = enemy.x;
             let newY = enemy.y;
             
+            // Mover na direção atual
             switch (enemy.direction) {
-                case 0: newX += speed; break;
-                case 1: newY += speed; break;
-                case 2: newX -= speed; break;
-                case 3: newY -= speed; break;
+                case 0: newX += speed; break; // direita
+                case 1: newY += speed; break; // baixo
+                case 2: newX -= speed; break; // esquerda
+                case 3: newY -= speed; break; // cima
             }
             
-            const gridX = Math.round(newX);
-            const gridY = Math.round(newY);
+            // Verificação de colisão simplificada
+            const canMove = !this.isWall(newX, newY) && !this.isBreakableWall(newX, newY) && !this.isBomb(Math.floor(newX), Math.floor(newY));
             
-            if (!this.isWall(gridX, gridY) && !this.isBreakableWall(gridX, gridY) && !this.isBomb(gridX, gridY)) {
-                enemy.x = newX;
-                enemy.y = newY;
+            if (canMove) {
+                enemy.x = Math.max(0.5, Math.min(this.gridSize - 1.5, newX));
+                enemy.y = Math.max(0.5, Math.min(this.gridSize - 1.5, newY));
             } else {
                 enemy.direction = Math.floor(Math.random() * 4);
                 enemy.moveTimer = 30;
             }
             
-            enemy.x = Math.max(0.5, Math.min(this.gridSize - 1.5, enemy.x));
-            enemy.y = Math.max(0.5, Math.min(this.gridSize - 1.5, enemy.y));
-            
-            if (Math.round(enemy.x) === Math.round(this.player.x) && 
-                Math.round(enemy.y) === Math.round(this.player.y) &&
+            // Verificar colisão com jogador
+            if (Math.floor(enemy.x) === Math.floor(this.player.x) && 
+                Math.floor(enemy.y) === Math.floor(this.player.y) &&
                 this.player.invincible <= 0) {
                 this.playerHit();
             }
@@ -445,7 +505,7 @@ class Game {
     }
     
     draw() {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.clearRect(0, 0, this.canvasWidth, this.canvasHeight);
         this.drawBackground();
         this.drawBreakableWalls();
         this.drawPowerUps();
@@ -457,24 +517,25 @@ class Game {
     
     drawBackground() {
         this.ctx.fillStyle = '#2a2a2a';
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
         
-        // Grid
+        // Grade
         this.ctx.strokeStyle = '#333';
         this.ctx.lineWidth = 1;
+        
         for (let i = 0; i <= this.gridSize; i++) {
             this.ctx.beginPath();
             this.ctx.moveTo(i * this.cellSize, 0);
-            this.ctx.lineTo(i * this.cellSize, this.canvas.height);
+            this.ctx.lineTo(i * this.cellSize, this.canvasHeight);
             this.ctx.stroke();
             
             this.ctx.beginPath();
             this.ctx.moveTo(0, i * this.cellSize);
-            this.ctx.lineTo(this.canvas.width, i * this.cellSize);
+            this.ctx.lineTo(this.canvasWidth, i * this.cellSize);
             this.ctx.stroke();
         }
         
-        // Walls
+        // Paredes indestrutíveis
         this.ctx.fillStyle = '#555';
         this.walls.forEach(wall => {
             this.ctx.fillRect(
@@ -527,13 +588,13 @@ class Game {
             this.ctx.scale(pulse, pulse);
             this.ctx.translate(-centerX, -centerY);
             
-            // Bomb
+            // Bomba
             this.ctx.fillStyle = '#333';
             this.ctx.beginPath();
             this.ctx.arc(centerX, centerY, this.cellSize * 0.35, 0, Math.PI * 2);
             this.ctx.fill();
             
-            // Fuse
+            // Pavio
             this.ctx.fillStyle = '#FF5722';
             this.ctx.beginPath();
             this.ctx.moveTo(centerX - 3, centerY - this.cellSize * 0.3);
@@ -559,13 +620,13 @@ class Game {
             const size = Math.min(e.size, 1) * this.cellSize * 0.8;
             const alpha = e.timer / 30;
             
-            // Core
+            // Núcleo da explosão
             this.ctx.fillStyle = `rgba(255, 200, 0, ${alpha})`;
             this.ctx.beginPath();
             this.ctx.arc(centerX, centerY, size * 0.6, 0, Math.PI * 2);
             this.ctx.fill();
             
-            // Outer
+            // Anel externo
             this.ctx.fillStyle = `rgba(255, 100, 0, ${alpha * 0.7})`;
             this.ctx.beginPath();
             this.ctx.arc(centerX, centerY, size, 0, Math.PI * 2);
@@ -579,13 +640,13 @@ class Game {
             const centerY = (enemy.y + 0.5) * this.cellSize;
             const floatOffset = Math.sin(enemy.animationTimer * 5) * 3;
             
-            // Body
+            // Corpo
             this.ctx.fillStyle = '#F44336';
             this.ctx.beginPath();
             this.ctx.arc(centerX, centerY + floatOffset, this.cellSize * 0.35, 0, Math.PI * 2);
             this.ctx.fill();
             
-            // Eyes
+            // Olhos
             this.ctx.fillStyle = '#000';
             this.ctx.beginPath();
             this.ctx.arc(
@@ -604,7 +665,7 @@ class Game {
             );
             this.ctx.fill();
             
-            // Mouth
+            // Boca
             this.ctx.strokeStyle = '#000';
             this.ctx.lineWidth = 2;
             this.ctx.beginPath();
@@ -622,31 +683,28 @@ class Game {
     drawPlayer() {
         const centerX = (this.player.x + 0.5) * this.cellSize;
         const centerY = (this.player.y + 0.5) * this.cellSize;
-        const isMoving = this.keys['arrowright'] || this.keys['arrowleft'] || 
-                        this.keys['arrowup'] || this.keys['arrowdown'] ||
-                        this.keys['a'] || this.keys['d'] || 
-                        this.keys['w'] || this.keys['s'];
-        const bounce = isMoving ? Math.sin(performance.now() * 0.01) * 3 : 0;
+        const bounce = this.player.moving ? Math.sin(performance.now() * 0.01) * 3 : 0;
         
+        // Efeito de invencibilidade
         if (this.player.invincible > 0 && Math.floor(this.player.invincible * 10) % 2 === 0) {
             this.ctx.globalAlpha = 0.5;
         }
         
-        // Body
+        // Corpo
         this.ctx.fillStyle = '#2196F3';
         this.ctx.beginPath();
         this.ctx.arc(centerX, centerY + bounce, this.cellSize * 0.35, 0, Math.PI * 2);
         this.ctx.fill();
         
-        // Face
+        // Cabeça
         this.ctx.fillStyle = '#BBDEFB';
         this.ctx.beginPath();
         this.ctx.arc(centerX, centerY - this.cellSize * 0.1 + bounce, this.cellSize * 0.25, 0, Math.PI * 2);
         this.ctx.fill();
         
-        // Eyes
+        // Olhos (piscando quando se move)
         this.ctx.fillStyle = '#000';
-        const blink = isMoving ? Math.sin(performance.now() * 0.01) > 0.7 ? 0 : 1 : 1;
+        const blink = this.player.moving ? Math.floor(performance.now() / 100) % 10 < 3 ? 0 : 1 : 1;
         
         if (blink) {
             this.ctx.beginPath();
@@ -674,7 +732,7 @@ class Game {
             );
         }
         
-        // Mouth
+        // Boca (sorriso)
         this.ctx.strokeStyle = '#000';
         this.ctx.lineWidth = 2;
         this.ctx.beginPath();
@@ -691,7 +749,7 @@ class Game {
     }
     
     gameLoop(time) {
-        this.deltaTime = (time - this.lastTime) / 1000;
+        this.deltaTime = Math.min((time - this.lastTime) / 1000, 0.1); // Limitar deltaTime para evitar bugs
         this.lastTime = time;
         
         if (this.gameRunning) {
@@ -708,7 +766,7 @@ class Game {
     }
 }
 
-// Initialize game
+// Inicializar o jogo quando a página carregar
 window.addEventListener('load', () => {
-    const game = new Game('gameCanvas');
+    const game = new BombermanGame('gameCanvas');
 });
