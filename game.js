@@ -11,14 +11,39 @@ class BombermanGame {
         this.deltaTime = 0;
         this.animationFrameId = null;
         
-        this.player = null;
+        this.player = {
+            x: 1,
+            y: 1,
+            radius: 0.35,
+            bombs: 1,
+            maxBombs: 3,
+            bombRange: 2,
+            speed: 3,
+            lives: 3,
+            score: 0,
+            invincible: 0,
+            direction: 0,
+            color: '#00f2ff'
+        };
+        
         this.bombs = [];
         this.explosions = [];
         this.enemies = [];
         this.walls = [];
         this.breakableWalls = [];
+        this.particles = [];
         
         this.keys = {};
+        this.colors = {
+            background: '#0a0a1a',
+            grid: 'rgba(0, 242, 255, 0.1)',
+            wall: '#6b00ff',
+            breakable: '#ff00c3',
+            bomb: '#ff3d00',
+            explosion: '#ffeb3b',
+            enemy: '#ff0055',
+            neonGlow: 'rgba(0, 242, 255, 0.7)'
+        };
         
         this.init();
     }
@@ -48,162 +73,54 @@ class BombermanGame {
         });
     }
     
-    setupUI() {
-        this.updateUI();
-    }
+    // ... (mantenha os métodos setupUI, resetGame, startGame, gameOver, levelComplete, updateUI)
     
-    resetGame() {
-        this.player = {
-            x: 1,
-            y: 1,
-            bombs: 1,
-            maxBombs: 3,
-            bombRange: 2,
-            speed: 3,
-            lives: 3,
-            score: 0,
-            invincible: 0,
-            direction: 0
-        };
-        
-        this.bombs = [];
-        this.explosions = [];
-        this.enemies = [];
+    generateLevel() {
         this.walls = [];
         this.breakableWalls = [];
         
-        this.generateLevel();
-        this.spawnEnemies(3);
-    }
-    
-    startGame() {
-        if (this.gameRunning) return;
-        
-        this.resetGame();
-        this.gameRunning = true;
-        document.getElementById('startBtn').classList.add('hidden');
-        document.getElementById('gameOver').classList.add('hidden');
-        document.getElementById('levelComplete').classList.add('hidden');
-        
-        this.lastTime = performance.now();
-        this.gameLoop(this.lastTime);
-    }
-    
-    gameOver() {
-        this.gameRunning = false;
-        document.getElementById('finalScore').textContent = this.player.score.toString().padStart(5, '0');
-        document.getElementById('gameOver').classList.remove('hidden');
-        document.getElementById('startBtn').classList.remove('hidden');
-        
-        if (this.animationFrameId) {
-            cancelAnimationFrame(this.animationFrameId);
-        }
-    }
-    
-    levelComplete() {
-        this.player.score += 500;
-        this.level++;
-        
-        document.getElementById('levelComplete').classList.remove('hidden');
-        setTimeout(() => {
-            document.getElementById('levelComplete').classList.add('hidden');
-            this.resetGame();
-            this.generateLevel();
-            this.spawnEnemies(3 + this.level);
-            this.updateUI();
-        }, 2000);
-    }
-    
-    updateUI() {
-        document.getElementById('score').textContent = this.player.score.toString().padStart(5, '0');
-        document.getElementById('bombs').textContent = `${this.player.bombs}/${this.player.maxBombs}`;
-        document.getElementById('lives').textContent = '♥'.repeat(this.player.lives);
-    }
-    
-    generateLevel() {
-        // Border walls
+        // Border walls with neon effect
         for (let y = 0; y < this.gridSize; y++) {
             for (let x = 0; x < this.gridSize; x++) {
                 if (x === 0 || y === 0 || x === this.gridSize - 1 || y === this.gridSize - 1) {
-                    this.walls.push({x, y});
+                    this.walls.push({
+                        x, 
+                        y,
+                        color: this.colors.wall,
+                        glow: true
+                    });
                 }
             }
         }
         
-        // Fixed pattern walls
+        // Fixed pattern walls with neon effect
         for (let y = 2; y < this.gridSize - 2; y += 2) {
             for (let x = 2; x < this.gridSize - 2; x += 2) {
-                this.walls.push({x, y});
+                this.walls.push({
+                    x, 
+                    y,
+                    color: this.colors.wall,
+                    glow: true
+                });
             }
         }
         
-        // Breakable walls
+        // Breakable walls with different neon color
         for (let y = 1; y < this.gridSize - 1; y++) {
             for (let x = 1; x < this.gridSize - 1; x++) {
                 if (!this.isWall(x, y) && !this.isPlayerStartArea(x, y) && Math.random() < 0.5) {
-                    this.breakableWalls.push({x, y});
+                    this.breakableWalls.push({
+                        x, 
+                        y,
+                        color: this.colors.breakable,
+                        glow: true
+                    });
                 }
             }
         }
     }
     
-    isPlayerStartArea(x, y) {
-        return (x === 1 && y === 1) || (x === 2 && y === 1) || (x === 1 && y === 2);
-    }
-    
-    spawnEnemies(count) {
-        for (let i = 0; i < count; i++) {
-            let x, y;
-            do {
-                x = Math.floor(Math.random() * (this.gridSize - 4)) + 2;
-                y = Math.floor(Math.random() * (this.gridSize - 4)) + 2;
-            } while (this.isOccupied(x, y));
-            
-            this.enemies.push({
-                x,
-                y,
-                speed: 0.5 + Math.random() * 0.5,
-                direction: Math.floor(Math.random() * 4),
-                moveTimer: 0
-            });
-        }
-    }
-    
-    isOccupied(x, y) {
-        return this.isWall(x, y) || this.isBreakableWall(x, y) || 
-               this.isBomb(x, y) || 
-               (Math.round(this.player.x) === x && Math.round(this.player.y) === y) || 
-               this.enemies.some(e => Math.round(e.x) === x && Math.round(e.y) === y);
-    }
-    
-    isWall(x, y) {
-        return this.walls.some(w => w.x === x && w.y === y);
-    }
-    
-    isBreakableWall(x, y) {
-        return this.breakableWalls.some(w => w.x === x && w.y === y);
-    }
-    
-    isBomb(x, y) {
-        return this.bombs.some(b => b.x === x && b.y === y);
-    }
-    
-    placeBomb() {
-        if (this.bombs.length >= this.player.maxBombs) return;
-        
-        const x = Math.round(this.player.x);
-        const y = Math.round(this.player.y);
-        
-        if (this.isBomb(x, y)) return;
-        
-        this.bombs.push({
-            x,
-            y,
-            timer: 180,
-            range: this.player.bombRange
-        });
-    }
-    
+    // FÍSICA APLICADA AQUI - Método updatePlayer revisado
     updatePlayer() {
         if (this.player.invincible > 0) {
             this.player.invincible -= this.deltaTime;
@@ -231,37 +148,50 @@ class BombermanGame {
             this.player.direction = 3;
         }
         
-        // Collision checks
-        const playerGridX = Math.round(this.player.x);
-        const playerGridY = Math.round(this.player.y);
-        const newGridX = Math.round(newX);
-        const newGridY = Math.round(newY);
+        // Verificação de colisão com física
+        const nextGridX = Math.round(newX);
+        const nextGridY = Math.round(newY);
+        const currentGridX = Math.round(this.player.x);
+        const currentGridY = Math.round(this.player.y);
         
-        // Check if we're moving to a new cell
-        const isMovingToNewCell = (playerGridX !== newGridX) || (playerGridY !== newGridY);
+        // Verifica se está tentando sair de uma bomba
+        const standingOnBomb = this.isBomb(currentGridX, currentGridY);
         
-        // Special case: allow moving away from bomb you just placed
-        const standingOnBomb = this.isBomb(playerGridX, playerGridY);
-        
-        if (standingOnBomb && isMovingToNewCell) {
-            // Allow movement away from bomb
-            this.player.x = newX;
-            this.player.y = newY;
-        } else {
-            // Normal collision checks
-            const canMoveX = !isMovingToNewCell || 
-                           (!this.isWall(newGridX, playerGridY) && 
-                            !this.isBomb(newGridX, playerGridY));
-            
-            const canMoveY = !isMovingToNewCell || 
-                           (!this.isWall(playerGridX, newGridY) && 
-                            !this.isBomb(playerGridX, newGridY));
-            
-            if (canMoveX) this.player.x = Math.max(0.5, Math.min(this.gridSize - 1.5, newX));
-            if (canMoveY) this.player.y = Math.max(0.5, Math.min(this.gridSize - 1.5, newY));
+        // Física de movimento
+        if (standingOnBomb || !this.isBomb(nextGridX, nextGridY)) {
+            // Verifica colisão com paredes
+            if (!this.isWall(nextGridX, nextGridY)) {
+                // Verifica se está mudando de célula
+                if (nextGridX !== currentGridX || nextGridY !== currentGridY) {
+                    // Verifica se a nova célula está livre
+                    if (!this.isWall(nextGridX, nextGridY) && 
+                        !this.isBomb(nextGridX, nextGridY)) {
+                        this.player.x = newX;
+                        this.player.y = newY;
+                    } else {
+                        // Desliza ao longo da parede/bomba
+                        if (!this.isWall(nextGridX, currentGridY) && 
+                            !this.isBomb(nextGridX, currentGridY)) {
+                            this.player.x = newX;
+                        }
+                        if (!this.isWall(currentGridX, nextGridY) && 
+                            !this.isBomb(currentGridX, nextGridY)) {
+                            this.player.y = newY;
+                        }
+                    }
+                } else {
+                    // Movimento dentro da mesma célula
+                    this.player.x = newX;
+                    this.player.y = newY;
+                }
+            }
         }
         
-        // Check explosions
+        // Limita os movimentos aos limites do mapa
+        this.player.x = Math.max(this.player.radius, Math.min(this.gridSize - 1 - this.player.radius, this.player.x));
+        this.player.y = Math.max(this.player.radius, Math.min(this.gridSize - 1 - this.player.radius, this.player.y));
+        
+        // Verifica explosões
         if (this.player.invincible <= 0) {
             const px = Math.round(this.player.x);
             const py = Math.round(this.player.y);
@@ -271,163 +201,14 @@ class BombermanGame {
         }
     }
     
-    playerHit() {
-        this.player.lives--;
-        this.player.invincible = 2;
-        this.updateUI();
-        
-        if (this.player.lives <= 0) {
-            this.gameOver();
-        }
-    }
-    
-    updateBombs() {
-        for (let i = this.bombs.length - 1; i >= 0; i--) {
-            const bomb = this.bombs[i];
-            bomb.timer -= this.deltaTime * 60;
-            
-            if (bomb.timer <= 0) {
-                this.explodeBomb(bomb);
-                this.bombs.splice(i, 1);
-            }
-        }
-    }
-    
-    explodeBomb(bomb) {
-        this.createExplosion(bomb.x, bomb.y);
-        
-        // Explode in 4 directions
-        const directions = [
-            {dx: 1, dy: 0}, {dx: -1, dy: 0}, 
-            {dx: 0, dy: 1}, {dx: 0, dy: -1}
-        ];
-        
-        directions.forEach(dir => {
-            for (let r = 1; r <= bomb.range; r++) {
-                const nx = bomb.x + dir.dx * r;
-                const ny = bomb.y + dir.dy * r;
-                
-                if (this.isWall(nx, ny)) break;
-                
-                this.createExplosion(nx, ny);
-                
-                // Check breakable walls
-                const wallIdx = this.breakableWalls.findIndex(w => w.x === nx && w.y === ny);
-                if (wallIdx !== -1) {
-                    this.breakableWalls.splice(wallIdx, 1);
-                    this.player.score += 10;
-                    break;
-                }
-                
-                // Chain reaction
-                const bombIdx = this.bombs.findIndex(b => b.x === nx && b.y === ny);
-                if (bombIdx !== -1) {
-                    this.explodeBomb(this.bombs[bombIdx]);
-                    this.bombs.splice(bombIdx, 1);
-                }
-            }
-        });
-    }
-    
-    createExplosion(x, y) {
-        this.explosions.push({
-            x,
-            y,
-            timer: 30,
-            size: 0
-        });
-        
-        // Check player
-        if (Math.round(this.player.x) === x && Math.round(this.player.y) === y && this.player.invincible <= 0) {
-            this.playerHit();
-        }
-        
-        // Check enemies
-        for (let i = this.enemies.length - 1; i >= 0; i--) {
-            if (Math.round(this.enemies[i].x) === x && Math.round(this.enemies[i].y) === y) {
-                this.enemies.splice(i, 1);
-                this.player.score += 100;
-                this.updateUI();
-            }
-        }
-    }
-    
-    updateEnemies() {
-        this.enemies.forEach(enemy => {
-            enemy.moveTimer -= this.deltaTime * 60;
-            
-            if (enemy.moveTimer <= 0) {
-                enemy.direction = Math.floor(Math.random() * 4);
-                enemy.moveTimer = 60 + Math.random() * 60;
-            }
-            
-            const speed = enemy.speed * this.deltaTime;
-            let newX = enemy.x;
-            let newY = enemy.y;
-            
-            switch (enemy.direction) {
-                case 0: newX += speed; break;
-                case 1: newY += speed; break;
-                case 2: newX -= speed; break;
-                case 3: newY -= speed; break;
-            }
-            
-            const gridX = Math.round(newX);
-            const gridY = Math.round(newY);
-            
-            if (!this.isWall(gridX, gridY) && !this.isBreakableWall(gridX, gridY) && !this.isBomb(gridX, gridY)) {
-                enemy.x = newX;
-                enemy.y = newY;
-            } else {
-                enemy.direction = Math.floor(Math.random() * 4);
-                enemy.moveTimer = 30;
-            }
-            
-            enemy.x = Math.max(0.5, Math.min(this.gridSize - 1.5, enemy.x));
-            enemy.y = Math.max(0.5, Math.min(this.gridSize - 1.5, enemy.y));
-            
-            if (Math.round(enemy.x) === Math.round(this.player.x) && 
-                Math.round(enemy.y) === Math.round(this.player.y) &&
-                this.player.invincible <= 0) {
-                this.playerHit();
-            }
-        });
-    }
-    
-    updateExplosions() {
-        for (let i = this.explosions.length - 1; i >= 0; i--) {
-            const e = this.explosions[i];
-            e.timer -= this.deltaTime * 60;
-            e.size += this.deltaTime * 2;
-            
-            if (e.timer <= 0) {
-                this.explosions.splice(i, 1);
-            }
-        }
-    }
-    
-    checkWinCondition() {
-        if (this.enemies.length === 0) {
-            this.levelComplete();
-        }
-    }
-    
-    draw() {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.drawBackground();
-        this.drawBreakableWalls();
-        this.drawBombs();
-        this.drawExplosions();
-        this.drawEnemies();
-        this.drawPlayer();
-    }
-    
+    // EFEITOS NEON - Método drawBackground revisado
     drawBackground() {
-        this.ctx.fillStyle = '#2a2a2a';
+        // Fundo escuro
+        this.ctx.fillStyle = this.colors.background;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // Grid
-        this.ctx.strokeStyle = '#333';
+        // Grade neon
+        this.ctx.strokeStyle = this.colors.grid;
         this.ctx.lineWidth = 1;
         for (let i = 0; i <= this.gridSize; i++) {
             this.ctx.beginPath();
@@ -441,212 +222,88 @@ class BombermanGame {
             this.ctx.stroke();
         }
         
-        // Walls
-        this.ctx.fillStyle = '#555';
+        // Paredes com efeito neon
         this.walls.forEach(wall => {
-            this.ctx.fillRect(
+            this.drawNeonBlock(
                 wall.x * this.cellSize, 
                 wall.y * this.cellSize, 
                 this.cellSize, 
-                this.cellSize
+                this.cellSize, 
+                wall.color || this.colors.wall,
+                wall.glow
             );
         });
     }
     
-    drawBreakableWalls() {
-        this.ctx.fillStyle = '#8B4513';
-        this.breakableWalls.forEach(wall => {
-            this.ctx.fillRect(
-                wall.x * this.cellSize + 1,
-                wall.y * this.cellSize + 1,
-                this.cellSize - 2,
-                this.cellSize - 2
-            );
-        });
+    // Método para desenhar blocos com efeito neon
+    drawNeonBlock(x, y, width, height, color, glow = true) {
+        // Sombra/brilho
+        if (glow) {
+            this.ctx.shadowColor = color;
+            this.ctx.shadowBlur = 15;
+        }
+        
+        // Bloco principal
+        this.ctx.fillStyle = color;
+        this.ctx.fillRect(x, y, width, height);
+        
+        // Resetar sombra
+        this.ctx.shadowBlur = 0;
+        
+        // Detalhes internos
+        this.ctx.strokeStyle = '#fff';
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(x + 2, y + 2, width - 4, height - 4);
     }
     
-    drawBombs() {
-        this.bombs.forEach(bomb => {
-            const centerX = (bomb.x + 0.5) * this.cellSize;
-            const centerY = (bomb.y + 0.5) * this.cellSize;
-            
-            // Bomb body
-            this.ctx.fillStyle = '#333';
-            this.ctx.beginPath();
-            this.ctx.arc(centerX, centerY, this.cellSize * 0.35, 0, Math.PI * 2);
-            this.ctx.fill();
-            
-            // Fuse
-            this.ctx.fillStyle = '#FF5722';
-            this.ctx.beginPath();
-            this.ctx.moveTo(centerX - 3, centerY - this.cellSize * 0.3);
-            this.ctx.lineTo(centerX + 3, centerY - this.cellSize * 0.3);
-            this.ctx.lineTo(centerX, centerY - this.cellSize * 0.5);
-            this.ctx.fill();
-            
-            // Timer
-            this.ctx.fillStyle = '#FFF';
-            this.ctx.font = `bold ${this.cellSize * 0.25}px Arial`;
-            this.ctx.textAlign = 'center';
-            this.ctx.textBaseline = 'middle';
-            this.ctx.fillText(Math.ceil(bomb.timer / 60), centerX, centerY);
-        });
-    }
-    
-    drawExplosions() {
-        this.explosions.forEach(e => {
-            const centerX = (e.x + 0.5) * this.cellSize;
-            const centerY = (e.y + 0.5) * this.cellSize;
-            const size = Math.min(e.size, 1) * this.cellSize * 0.8;
-            const alpha = e.timer / 30;
-            
-            // Core
-            this.ctx.fillStyle = `rgba(255, 200, 0, ${alpha})`;
-            this.ctx.beginPath();
-            this.ctx.arc(centerX, centerY, size * 0.6, 0, Math.PI * 2);
-            this.ctx.fill();
-            
-            // Outer
-            this.ctx.fillStyle = `rgba(255, 100, 0, ${alpha * 0.7})`;
-            this.ctx.beginPath();
-            this.ctx.arc(centerX, centerY, size, 0, Math.PI * 2);
-            this.ctx.fill();
-        });
-    }
-    
-    drawEnemies() {
-        this.enemies.forEach(enemy => {
-            const centerX = (enemy.x + 0.5) * this.cellSize;
-            const centerY = (enemy.y + 0.5) * this.cellSize;
-            
-            // Body
-            this.ctx.fillStyle = '#F44336';
-            this.ctx.beginPath();
-            this.ctx.arc(centerX, centerY, this.cellSize * 0.35, 0, Math.PI * 2);
-            this.ctx.fill();
-            
-            // Eyes
-            this.ctx.fillStyle = '#000';
-            this.ctx.beginPath();
-            this.ctx.arc(
-                centerX - this.cellSize * 0.15, 
-                centerY - this.cellSize * 0.1, 
-                this.cellSize * 0.08, 
-                0, 
-                Math.PI * 2
-            );
-            this.ctx.arc(
-                centerX + this.cellSize * 0.15, 
-                centerY - this.cellSize * 0.1, 
-                this.cellSize * 0.08, 
-                0, 
-                Math.PI * 2
-            );
-            this.ctx.fill();
-            
-            // Mouth
-            this.ctx.strokeStyle = '#000';
-            this.ctx.lineWidth = 2;
-            this.ctx.beginPath();
-            this.ctx.arc(
-                centerX, 
-                centerY + this.cellSize * 0.1, 
-                this.cellSize * 0.15, 
-                0.1 * Math.PI, 
-                0.9 * Math.PI
-            );
-            this.ctx.stroke();
-        });
-    }
+    // ... (mantenha os outros métodos draw atualizados com estilo neon)
     
     drawPlayer() {
         const centerX = (this.player.x + 0.5) * this.cellSize;
         const centerY = (this.player.y + 0.5) * this.cellSize;
+        const radius = this.player.radius * this.cellSize;
         
         if (this.player.invincible > 0 && Math.floor(this.player.invincible * 10) % 2 === 0) {
             this.ctx.globalAlpha = 0.5;
         }
         
-        // Body
-        this.ctx.fillStyle = '#2196F3';
+        // Efeito neon no jogador
+        this.ctx.shadowColor = this.player.color;
+        this.ctx.shadowBlur = 20;
+        
+        // Corpo
+        this.ctx.fillStyle = this.player.color;
         this.ctx.beginPath();
-        this.ctx.arc(centerX, centerY, this.cellSize * 0.35, 0, Math.PI * 2);
+        this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
         this.ctx.fill();
         
-        // Face
-        this.ctx.fillStyle = '#BBDEFB';
+        // Resetar sombra
+        this.ctx.shadowBlur = 0;
+        
+        // Detalhes do rosto
+        const eyeOffsetX = radius * 0.4;
+        const eyeOffsetY = radius * 0.3;
+        
+        // Olhos
+        this.ctx.fillStyle = '#fff';
         this.ctx.beginPath();
-        this.ctx.arc(centerX, centerY - this.cellSize * 0.1, this.cellSize * 0.25, 0, Math.PI * 2);
+        this.ctx.arc(centerX - eyeOffsetX, centerY - eyeOffsetY, radius * 0.15, 0, Math.PI * 2);
+        this.ctx.arc(centerX + eyeOffsetX, centerY - eyeOffsetY, radius * 0.15, 0, Math.PI * 2);
         this.ctx.fill();
         
-        // Eyes
-        this.ctx.fillStyle = '#000';
-        const isMoving = this.keys['arrowright'] || this.keys['arrowleft'] || 
-                        this.keys['arrowup'] || this.keys['arrowdown'] ||
-                        this.keys['a'] || this.keys['d'] || 
-                        this.keys['w'] || this.keys['s'];
-        const blink = isMoving ? Math.sin(performance.now() * 0.01) > 0.7 ? 0 : 1 : 1;
-        
-        if (blink) {
-            this.ctx.beginPath();
-            this.ctx.arc(
-                centerX - this.cellSize * 0.08, 
-                centerY - this.cellSize * 0.12, 
-                this.cellSize * 0.05, 
-                0, 
-                Math.PI * 2
-            );
-            this.ctx.arc(
-                centerX + this.cellSize * 0.08, 
-                centerY - this.cellSize * 0.12, 
-                this.cellSize * 0.05, 
-                0, 
-                Math.PI * 2
-            );
-            this.ctx.fill();
-        } else {
-            this.ctx.fillRect(
-                centerX - this.cellSize * 0.1,
-                centerY - this.cellSize * 0.1,
-                this.cellSize * 0.2,
-                this.cellSize * 0.03
-            );
-        }
-        
-        // Mouth
-        this.ctx.strokeStyle = '#000';
+        // Boca
+        this.ctx.strokeStyle = '#fff';
         this.ctx.lineWidth = 2;
         this.ctx.beginPath();
-        this.ctx.arc(
-            centerX, 
-            centerY, 
-            this.cellSize * 0.1, 
-            0.2 * Math.PI, 
-            0.8 * Math.PI
-        );
+        this.ctx.arc(centerX, centerY + radius * 0.2, radius * 0.3, 0.2 * Math.PI, 0.8 * Math.PI);
         this.ctx.stroke();
         
         this.ctx.globalAlpha = 1;
     }
     
-    gameLoop(time) {
-        this.deltaTime = (time - this.lastTime) / 1000;
-        this.lastTime = time;
-        
-        if (this.gameRunning) {
-            this.updatePlayer();
-            this.updateEnemies();
-            this.updateBombs();
-            this.updateExplosions();
-            this.checkWinCondition();
-            this.draw();
-        }
-        
-        this.animationFrameId = requestAnimationFrame(t => this.gameLoop(t));
-    }
+    // ... (mantenha os outros métodos necessários)
 }
 
-// Initialize game when page loads
 window.addEventListener('load', () => {
     const game = new BombermanGame('gameCanvas');
 });
