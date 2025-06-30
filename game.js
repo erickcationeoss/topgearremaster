@@ -9,6 +9,7 @@ class BombermanGame {
         this.level = 1;
         this.lastTime = 0;
         this.deltaTime = 0;
+        this.animationFrameId = null;
         
         this.player = null;
         this.bombs = [];
@@ -93,6 +94,10 @@ class BombermanGame {
         document.getElementById('finalScore').textContent = this.player.score.toString().padStart(5, '0');
         document.getElementById('gameOver').classList.remove('hidden');
         document.getElementById('startBtn').classList.remove('hidden');
+        
+        if (this.animationFrameId) {
+            cancelAnimationFrame(this.animationFrameId);
+        }
     }
     
     levelComplete() {
@@ -103,6 +108,8 @@ class BombermanGame {
         setTimeout(() => {
             document.getElementById('levelComplete').classList.add('hidden');
             this.resetGame();
+            this.generateLevel();
+            this.spawnEnemies(3 + this.level);
             this.updateUI();
         }, 2000);
     }
@@ -635,7 +642,7 @@ class BombermanGame {
             this.draw();
         }
         
-        requestAnimationFrame(t => this.gameLoop(t));
+        this.animationFrameId = requestAnimationFrame(t => this.gameLoop(t));
     }
 }
 
