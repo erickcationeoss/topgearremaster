@@ -5,12 +5,14 @@ class BombermanGame {
         this.gridSize = 13;
         this.cellSize = this.canvas.width / this.gridSize;
         
+        // Game state
         this.gameRunning = false;
         this.level = 1;
         this.lastTime = 0;
         this.deltaTime = 0;
-        this.animationFrameId = null;
+        this.animationId = null;
         
+        // Physics settings
         this.player = {
             x: 1,
             y: 1,
@@ -26,14 +28,17 @@ class BombermanGame {
             color: '#00f2ff'
         };
         
+        // Game elements
         this.bombs = [];
         this.explosions = [];
         this.enemies = [];
         this.walls = [];
         this.breakableWalls = [];
-        this.particles = [];
         
+        // Controls
         this.keys = {};
+        
+        // Neon colors
         this.colors = {
             background: '#0a0a1a',
             grid: 'rgba(0, 242, 255, 0.1)',
@@ -55,72 +60,68 @@ class BombermanGame {
     }
     
     setupControls() {
-        window.addEventListener('keydown', (e) => {
+        // Remove old event listeners to prevent duplicates
+        window.removeEventListener('keydown', this.handleKeyDown);
+        window.removeEventListener('keyup', this.handleKeyUp);
+        
+        this.handleKeyDown = (e) => {
             if (e.key === ' ') {
                 if (this.gameRunning) this.placeBomb();
                 e.preventDefault();
             } else {
                 this.keys[e.key.toLowerCase()] = true;
             }
-        });
+        };
         
-        window.addEventListener('keyup', (e) => {
+        this.handleKeyUp = (e) => {
             this.keys[e.key.toLowerCase()] = false;
-        });
+        };
         
-        document.getElementById('startBtn').addEventListener('click', () => {
-            if (!this.gameRunning) this.startGame();
-        });
+        window.addEventListener('keydown', this.handleKeyDown);
+        window.addEventListener('keyup', this.handleKeyUp);
+        
+        const startBtn = document.getElementById('startBtn');
+        startBtn.removeEventListener('click', this.startGame);
+        startBtn.addEventListener('click', () => this.startGame());
     }
     
-    // ... (mantenha os métodos setupUI, resetGame, startGame, gameOver, levelComplete, updateUI)
-    
-    generateLevel() {
-        this.walls = [];
-        this.breakableWalls = [];
-        
-        // Border walls with neon effect
-        for (let y = 0; y < this.gridSize; y++) {
-            for (let x = 0; x < this.gridSize; x++) {
-                if (x === 0 || y === 0 || x === this.gridSize - 1 || y === this.gridSize - 1) {
-                    this.walls.push({
-                        x, 
-                        y,
-                        color: this.colors.wall,
-                        glow: true
-                    });
-                }
-            }
+    startGame() {
+        if (this.gameRunning) {
+            cancelAnimationFrame(this.animationId);
         }
         
-        // Fixed pattern walls with neon effect
-        for (let y = 2; y < this.gridSize - 2; y += 2) {
-            for (let x = 2; x < this.gridSize - 2; x += 2) {
-                this.walls.push({
-                    x, 
-                    y,
-                    color: this.colors.wall,
-                    glow: true
-                });
-            }
-        }
+        this.resetGame();
+        this.gameRunning = true;
+        document.getElementById('startBtn').classList.add('hidden');
+        document.getElementById('gameOver').classList.add('hidden');
+        document.getElementById('levelComplete').classList.add('hidden');
         
-        // Breakable walls with different neon color
-        for (let y = 1; y < this.gridSize - 1; y++) {
-            for (let x = 1; x < this.gridSize - 1; x++) {
-                if (!this.isWall(x, y) && !this.isPlayerStartArea(x, y) && Math.random() < 0.5) {
-                    this.breakableWalls.push({
-                        x, 
-                        y,
-                        color: this.colors.breakable,
-                        glow: true
-                    });
-                }
-            }
-        }
+        this.lastTime = performance.now();
+        this.gameLoop(this.lastTime);
     }
     
-    // FÍSICA APLICADA AQUI - Método updatePlayer revisado
+    gameLoop(time) {
+        // Calculate delta time safely
+        this.deltaTime = Math.min((time - this.lastTime) / 1000, 0.1); // Cap at 100ms
+        this.lastTime = time;
+        
+        if (this.gameRunning) {
+            this.update();
+            this.render();
+        }
+        
+        // Use arrow function to maintain 'this' context
+        this.animationId = requestAnimationFrame((t) => this.gameLoop(t));
+    }
+    
+    update() {
+        this.updatePlayer();
+        this.updateBombs();
+        this.updateExplosions();
+        this.updateEnemies();
+        this.checkWinCondition();
+    }
+    
     updatePlayer() {
         if (this.player.invincible > 0) {
             this.player.invincible -= this.deltaTime;
@@ -148,50 +149,37 @@ class BombermanGame {
             this.player.direction = 3;
         }
         
-        // Verificação de colisão com física
-        const nextGridX = Math.round(newX);
-        const nextGridY = Math.round(newY);
-        const currentGridX = Math.round(this.player.x);
-        const currentGridY = Math.round(this.player.y);
+        // Collision checks
+        const playerGridX = Math.round(this.player.x);
+        const playerGridY = Math.round(this.player.y);
+        const newGridX = Math.round(newX);
+        const newGridY = Math.round(newY);
         
-        // Verifica se está tentando sair de uma bomba
-        const standingOnBomb = this.isBomb(currentGridX, currentGridY);
+        // Check if we're moving to a new cell
+        const isMovingToNewCell = (playerGridX !== newGridX) || (playerGridY !== newGridY);
         
-        // Física de movimento
-        if (standingOnBomb || !this.isBomb(nextGridX, nextGridY)) {
-            // Verifica colisão com paredes
-            if (!this.isWall(nextGridX, nextGridY)) {
-                // Verifica se está mudando de célula
-                if (nextGridX !== currentGridX || nextGridY !== currentGridY) {
-                    // Verifica se a nova célula está livre
-                    if (!this.isWall(nextGridX, nextGridY) && 
-                        !this.isBomb(nextGridX, nextGridY)) {
-                        this.player.x = newX;
-                        this.player.y = newY;
-                    } else {
-                        // Desliza ao longo da parede/bomba
-                        if (!this.isWall(nextGridX, currentGridY) && 
-                            !this.isBomb(nextGridX, currentGridY)) {
-                            this.player.x = newX;
-                        }
-                        if (!this.isWall(currentGridX, nextGridY) && 
-                            !this.isBomb(currentGridX, nextGridY)) {
-                            this.player.y = newY;
-                        }
-                    }
-                } else {
-                    // Movimento dentro da mesma célula
-                    this.player.x = newX;
-                    this.player.y = newY;
-                }
-            }
+        // Special case: allow moving away from bomb you just placed
+        const standingOnBomb = this.isBomb(playerGridX, playerGridY);
+        
+        if (standingOnBomb && isMovingToNewCell) {
+            // Allow movement away from bomb
+            this.player.x = newX;
+            this.player.y = newY;
+        } else {
+            // Normal collision checks
+            const canMoveX = !isMovingToNewCell || 
+                           (!this.isWall(newGridX, playerGridY) && 
+                            !this.isBomb(newGridX, playerGridY));
+            
+            const canMoveY = !isMovingToNewCell || 
+                           (!this.isWall(playerGridX, newGridY) && 
+                            !this.isBomb(playerGridX, newGridY));
+            
+            if (canMoveX) this.player.x = Math.max(this.player.radius, Math.min(this.gridSize - 1 - this.player.radius, newX));
+            if (canMoveY) this.player.y = Math.max(this.player.radius, Math.min(this.gridSize - 1 - this.player.radius, newY));
         }
         
-        // Limita os movimentos aos limites do mapa
-        this.player.x = Math.max(this.player.radius, Math.min(this.gridSize - 1 - this.player.radius, this.player.x));
-        this.player.y = Math.max(this.player.radius, Math.min(this.gridSize - 1 - this.player.radius, this.player.y));
-        
-        // Verifica explosões
+        // Check explosions
         if (this.player.invincible <= 0) {
             const px = Math.round(this.player.x);
             const py = Math.round(this.player.y);
@@ -201,109 +189,48 @@ class BombermanGame {
         }
     }
     
-    // EFEITOS NEON - Método drawBackground revisado
-    drawBackground() {
-        // Fundo escuro
-        this.ctx.fillStyle = this.colors.background;
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        
-        // Grade neon
-        this.ctx.strokeStyle = this.colors.grid;
-        this.ctx.lineWidth = 1;
-        for (let i = 0; i <= this.gridSize; i++) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(i * this.cellSize, 0);
-            this.ctx.lineTo(i * this.cellSize, this.canvas.height);
-            this.ctx.stroke();
-            
-            this.ctx.beginPath();
-            this.ctx.moveTo(0, i * this.cellSize);
-            this.ctx.lineTo(this.canvas.width, i * this.cellSize);
-            this.ctx.stroke();
-        }
-        
-        // Paredes com efeito neon
-        this.walls.forEach(wall => {
-            this.drawNeonBlock(
-                wall.x * this.cellSize, 
-                wall.y * this.cellSize, 
-                this.cellSize, 
-                this.cellSize, 
-                wall.color || this.colors.wall,
-                wall.glow
-            );
-        });
+    render() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.drawBackground();
+        this.drawBreakableWalls();
+        this.drawBombs();
+        this.drawExplosions();
+        this.drawEnemies();
+        this.drawPlayer();
     }
     
-    // Método para desenhar blocos com efeito neon
-    drawNeonBlock(x, y, width, height, color, glow = true) {
-        // Sombra/brilho
-        if (glow) {
-            this.ctx.shadowColor = color;
-            this.ctx.shadowBlur = 15;
+    // ... (mantenha os outros métodos como generateLevel, isOccupied, placeBomb, etc)
+
+    gameOver() {
+        this.gameRunning = false;
+        document.getElementById('finalScore').textContent = this.player.score.toString().padStart(5, '0');
+        document.getElementById('gameOver').classList.remove('hidden');
+        document.getElementById('startBtn').classList.remove('hidden');
+        
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
         }
-        
-        // Bloco principal
-        this.ctx.fillStyle = color;
-        this.ctx.fillRect(x, y, width, height);
-        
-        // Resetar sombra
-        this.ctx.shadowBlur = 0;
-        
-        // Detalhes internos
-        this.ctx.strokeStyle = '#fff';
-        this.ctx.lineWidth = 1;
-        this.ctx.strokeRect(x + 2, y + 2, width - 4, height - 4);
     }
-    
-    // ... (mantenha os outros métodos draw atualizados com estilo neon)
-    
-    drawPlayer() {
-        const centerX = (this.player.x + 0.5) * this.cellSize;
-        const centerY = (this.player.y + 0.5) * this.cellSize;
-        const radius = this.player.radius * this.cellSize;
-        
-        if (this.player.invincible > 0 && Math.floor(this.player.invincible * 10) % 2 === 0) {
-            this.ctx.globalAlpha = 0.5;
+
+    cleanUp() {
+        if (this.animationId) {
+            cancelAnimationFrame(this.animationId);
+            this.animationId = null;
         }
-        
-        // Efeito neon no jogador
-        this.ctx.shadowColor = this.player.color;
-        this.ctx.shadowBlur = 20;
-        
-        // Corpo
-        this.ctx.fillStyle = this.player.color;
-        this.ctx.beginPath();
-        this.ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-        this.ctx.fill();
-        
-        // Resetar sombra
-        this.ctx.shadowBlur = 0;
-        
-        // Detalhes do rosto
-        const eyeOffsetX = radius * 0.4;
-        const eyeOffsetY = radius * 0.3;
-        
-        // Olhos
-        this.ctx.fillStyle = '#fff';
-        this.ctx.beginPath();
-        this.ctx.arc(centerX - eyeOffsetX, centerY - eyeOffsetY, radius * 0.15, 0, Math.PI * 2);
-        this.ctx.arc(centerX + eyeOffsetX, centerY - eyeOffsetY, radius * 0.15, 0, Math.PI * 2);
-        this.ctx.fill();
-        
-        // Boca
-        this.ctx.strokeStyle = '#fff';
-        this.ctx.lineWidth = 2;
-        this.ctx.beginPath();
-        this.ctx.arc(centerX, centerY + radius * 0.2, radius * 0.3, 0.2 * Math.PI, 0.8 * Math.PI);
-        this.ctx.stroke();
-        
-        this.ctx.globalAlpha = 1;
+        window.removeEventListener('keydown', this.handleKeyDown);
+        window.removeEventListener('keyup', this.handleKeyUp);
     }
-    
-    // ... (mantenha os outros métodos necessários)
 }
 
+// Initialize game safely
 window.addEventListener('load', () => {
     const game = new BombermanGame('gameCanvas');
+    
+    // Clean up when page is hidden to prevent memory leaks
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            game.cleanUp();
+        }
+    });
 });

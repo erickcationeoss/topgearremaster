@@ -226,3 +226,21 @@ canvas {
     color: var(--neon-yellow);
     text-shadow: 0 0 5px var(--neon-yellow);
 }
+/* Adicione isso ao seu CSS existente */
+canvas {
+    display: block;
+    background-color: #0a0a1a;
+    image-rendering: pixelated;
+}
+
+body {
+    overflow: hidden;
+    touch-action: none; /* Prevenir zoom em dispositivos móveis */
+}
+
+.game-container {
+    position: relative;
+    width: 600px;
+    height: 600px;
+    margin: 0 auto;
+}
