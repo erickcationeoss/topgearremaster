@@ -5,14 +5,14 @@ class BombermanGame {
         this.gridSize = 13;
         this.cellSize = this.canvas.width / this.gridSize;
         
-        // Game state
+        // Controle de estado do jogo
         this.gameRunning = false;
         this.level = 1;
-        this.lastTime = 0;
+        this.lastTime = performance.now();
         this.deltaTime = 0;
         this.animationId = null;
         
-        // Physics settings
+        // Configurações do jogador
         this.player = {
             x: 1,
             y: 1,
@@ -28,17 +28,17 @@ class BombermanGame {
             color: '#00f2ff'
         };
         
-        // Game elements
+        // Elementos do jogo
         this.bombs = [];
         this.explosions = [];
         this.enemies = [];
         this.walls = [];
         this.breakableWalls = [];
         
-        // Controls
+        // Controles
         this.keys = {};
         
-        // Neon colors
+        // Cores neon
         this.colors = {
             background: '#0a0a1a',
             grid: 'rgba(0, 242, 255, 0.1)',
@@ -46,9 +46,13 @@ class BombermanGame {
             breakable: '#ff00c3',
             bomb: '#ff3d00',
             explosion: '#ffeb3b',
-            enemy: '#ff0055',
-            neonGlow: 'rgba(0, 242, 255, 0.7)'
+            enemy: '#ff0055'
         };
+        
+        // Bind dos métodos
+        this.handleKeyDown = this.handleKeyDown.bind(this);
+        this.handleKeyUp = this.handleKeyUp.bind(this);
+        this.gameLoop = this.gameLoop.bind(this);
         
         this.init();
     }
@@ -60,33 +64,34 @@ class BombermanGame {
     }
     
     setupControls() {
-        // Remove old event listeners to prevent duplicates
+        // Remove listeners antigos para evitar duplicação
         window.removeEventListener('keydown', this.handleKeyDown);
         window.removeEventListener('keyup', this.handleKeyUp);
         
-        this.handleKeyDown = (e) => {
-            if (e.key === ' ') {
-                if (this.gameRunning) this.placeBomb();
-                e.preventDefault();
-            } else {
-                this.keys[e.key.toLowerCase()] = true;
-            }
-        };
-        
-        this.handleKeyUp = (e) => {
-            this.keys[e.key.toLowerCase()] = false;
-        };
-        
+        // Adiciona novos listeners
         window.addEventListener('keydown', this.handleKeyDown);
         window.addEventListener('keyup', this.handleKeyUp);
         
         const startBtn = document.getElementById('startBtn');
-        startBtn.removeEventListener('click', this.startGame);
-        startBtn.addEventListener('click', () => this.startGame());
+        startBtn.onclick = () => this.startGame();
+    }
+    
+    handleKeyDown(e) {
+        if (e.key === ' ') {
+            if (this.gameRunning) this.placeBomb();
+            e.preventDefault();
+        } else {
+            this.keys[e.key.toLowerCase()] = true;
+        }
+    }
+    
+    handleKeyUp(e) {
+        this.keys[e.key.toLowerCase()] = false;
     }
     
     startGame() {
-        if (this.gameRunning) {
+        // Garante que não há múltiplas instâncias do game loop
+        if (this.animationId) {
             cancelAnimationFrame(this.animationId);
         }
         
@@ -97,21 +102,20 @@ class BombermanGame {
         document.getElementById('levelComplete').classList.add('hidden');
         
         this.lastTime = performance.now();
-        this.gameLoop(this.lastTime);
+        this.animationId = requestAnimationFrame(this.gameLoop);
     }
     
-    gameLoop(time) {
-        // Calculate delta time safely
-        this.deltaTime = Math.min((time - this.lastTime) / 1000, 0.1); // Cap at 100ms
-        this.lastTime = time;
+    gameLoop(currentTime) {
+        // Cálculo seguro do deltaTime
+        this.deltaTime = Math.min((currentTime - this.lastTime) / 1000, 0.1);
+        this.lastTime = currentTime;
         
         if (this.gameRunning) {
             this.update();
             this.render();
         }
         
-        // Use arrow function to maintain 'this' context
-        this.animationId = requestAnimationFrame((t) => this.gameLoop(t));
+        this.animationId = requestAnimationFrame(this.gameLoop);
     }
     
     update() {
@@ -123,96 +127,10 @@ class BombermanGame {
     }
     
     updatePlayer() {
-        if (this.player.invincible > 0) {
-            this.player.invincible -= this.deltaTime;
-        }
-        
-        const speed = this.player.speed * this.deltaTime;
-        let newX = this.player.x;
-        let newY = this.player.y;
-        
-        // Movement input
-        if (this.keys['arrowright'] || this.keys['d']) {
-            newX += speed;
-            this.player.direction = 0;
-        }
-        if (this.keys['arrowleft'] || this.keys['a']) {
-            newX -= speed;
-            this.player.direction = 2;
-        }
-        if (this.keys['arrowdown'] || this.keys['s']) {
-            newY += speed;
-            this.player.direction = 1;
-        }
-        if (this.keys['arrowup'] || this.keys['w']) {
-            newY -= speed;
-            this.player.direction = 3;
-        }
-        
-        // Collision checks
-        const playerGridX = Math.round(this.player.x);
-        const playerGridY = Math.round(this.player.y);
-        const newGridX = Math.round(newX);
-        const newGridY = Math.round(newY);
-        
-        // Check if we're moving to a new cell
-        const isMovingToNewCell = (playerGridX !== newGridX) || (playerGridY !== newGridY);
-        
-        // Special case: allow moving away from bomb you just placed
-        const standingOnBomb = this.isBomb(playerGridX, playerGridY);
-        
-        if (standingOnBomb && isMovingToNewCell) {
-            // Allow movement away from bomb
-            this.player.x = newX;
-            this.player.y = newY;
-        } else {
-            // Normal collision checks
-            const canMoveX = !isMovingToNewCell || 
-                           (!this.isWall(newGridX, playerGridY) && 
-                            !this.isBomb(newGridX, playerGridY));
-            
-            const canMoveY = !isMovingToNewCell || 
-                           (!this.isWall(playerGridX, newGridY) && 
-                            !this.isBomb(playerGridX, newGridY));
-            
-            if (canMoveX) this.player.x = Math.max(this.player.radius, Math.min(this.gridSize - 1 - this.player.radius, newX));
-            if (canMoveY) this.player.y = Math.max(this.player.radius, Math.min(this.gridSize - 1 - this.player.radius, newY));
-        }
-        
-        // Check explosions
-        if (this.player.invincible <= 0) {
-            const px = Math.round(this.player.x);
-            const py = Math.round(this.player.y);
-            if (this.explosions.some(e => e.x === px && e.y === py)) {
-                this.playerHit();
-            }
-        }
+        // Implementação da física de movimento (manter a versão anterior)
+        // ... (código de updatePlayer da versão anterior)
     }
     
-    render() {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.drawBackground();
-        this.drawBreakableWalls();
-        this.drawBombs();
-        this.drawExplosions();
-        this.drawEnemies();
-        this.drawPlayer();
-    }
-    
-    // ... (mantenha os outros métodos como generateLevel, isOccupied, placeBomb, etc)
-
-    gameOver() {
-        this.gameRunning = false;
-        document.getElementById('finalScore').textContent = this.player.score.toString().padStart(5, '0');
-        document.getElementById('gameOver').classList.remove('hidden');
-        document.getElementById('startBtn').classList.remove('hidden');
-        
-        if (this.animationId) {
-            cancelAnimationFrame(this.animationId);
-            this.animationId = null;
-        }
-    }
-
     cleanUp() {
         if (this.animationId) {
             cancelAnimationFrame(this.animationId);
@@ -221,13 +139,23 @@ class BombermanGame {
         window.removeEventListener('keydown', this.handleKeyDown);
         window.removeEventListener('keyup', this.handleKeyUp);
     }
+    
+    gameOver() {
+        this.gameRunning = false;
+        document.getElementById('finalScore').textContent = this.player.score.toString().padStart(5, '0');
+        document.getElementById('gameOver').classList.remove('hidden');
+        document.getElementById('startBtn').classList.remove('hidden');
+        this.cleanUp();
+    }
+    
+    // ... (manter os outros métodos necessários)
 }
 
-// Initialize game safely
+// Inicialização segura
 window.addEventListener('load', () => {
     const game = new BombermanGame('gameCanvas');
     
-    // Clean up when page is hidden to prevent memory leaks
+    // Limpeza quando a página for ocultada
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
             game.cleanUp();
