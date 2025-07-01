@@ -116,3 +116,76 @@
         animation: pipe-animations 1s infinite linear;
     }
 }
+/* Adicione estas regras ao seu style.css existente */
+
+body {
+    background-color: #222;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    font-family: 'Press Start 2P', cursive;
+    color: white;
+    margin: 0;
+    padding: 20px;
+}
+
+.game-container {
+    max-width: 800px;
+    width: 100%;
+    position: relative;
+}
+
+.game-wrapper {
+    position: relative;
+    border: 8px solid #e52521;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5),
+                inset 0 0 20px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    background: #e52521;
+}
+
+.game-border {
+    background: linear-gradient(135deg, #e52521 0%, #a71d1a 100%);
+    padding: 15px;
+    border-radius: 15px;
+    margin-top: 20px;
+    text-align: center;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.controls-info {
+    background-color: rgba(0, 0, 0, 0.3);
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.controls-info kbd {
+    background-color: #333;
+    color: #fff;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    box-shadow: 0 2px 0 #111;
+}
+
+/* Mantenha todas as regras originais do jogo */
+.game-board {
+    /* suas regras originais permanecem iguais */
+}
+
+/* Adicione esta media query para responsividade */
+@media (max-width: 768px) {
+    .game-container {
+        width: 95%;
+    }
+    
+    .game-border {
+        padding: 10px;
+    }
+    
+    .controls-info p {
+        font-size: 0.8em;
+    }
+}
