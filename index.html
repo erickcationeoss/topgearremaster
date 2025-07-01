@@ -2,101 +2,10 @@
 <html>
 <head>
     <title>Mario HTML5</title>
-    <style>
-        body { margin: 0; overflow: hidden; }
-        #gameCanvas { background: #6b8cff; display: block; }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <canvas id="gameCanvas" width="800" height="400"></canvas>
-    <script>
-        // Configurações do jogo
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-
-        // URLs das spritesheets
-        const marioSpriteUrl = 'https://i.imgur.com/YN6QqKx.png';
-        const goombaSpriteUrl = 'https://i.imgur.com/JYw0F6t.png';
-        const blockSpriteUrl = 'https://i.imgur.com/3JQ6K7z.png';
-
-        // Carrega as imagens
-        const marioSprite = new Image();
-        const goombaSprite = new Image();
-        const blockSprite = new Image();
-        marioSprite.src = marioSpriteUrl;
-        goombaSprite.src = goombaSpriteUrl;
-        blockSprite.src = blockSpriteUrl;
-
-        // Variáveis do jogo
-        let mario = { x: 50, y: 300, width: 32, height: 48, speedX: 0, speedY: 0, isJumping: false };
-        let goombas = [{ x: 500, y: 340, width: 32, height: 32, speedX: -2 }];
-        let ground = { y: 350, height: 50 };
-        let blocks = [{ x: 300, y: 250, width: 64, height: 64 }];
-
-        // Controles
-        const keys = {};
-        document.addEventListener('keydown', (e) => keys[e.key] = true);
-        document.addEventListener('keyup', (e) => keys[e.key] = false);
-
-        // Loop do jogo
-        function gameLoop() {
-            // Limpa o canvas
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Atualiza Mario
-            if (keys['ArrowLeft']) mario.speedX = -5;
-            else if (keys['ArrowRight']) mario.speedX = 5;
-            else mario.speedX = 0;
-
-            if (keys['ArrowUp'] && !mario.isJumping) {
-                mario.speedY = -15;
-                mario.isJumping = true;
-            }
-
-            // Aplica gravidade
-            mario.speedY += 0.8;
-            mario.x += mario.speedX;
-            mario.y += mario.speedY;
-
-            // Colisão com o chão
-            if (mario.y + mario.height > ground.y) {
-                mario.y = ground.y - mario.height;
-                mario.speedY = 0;
-                mario.isJumping = false;
-            }
-
-            // Desenha o cenário
-            ctx.fillStyle = '#5c94fc';
-            ctx.fillRect(0, 0, canvas.width, ground.y);
-            ctx.fillStyle = '#6a4a3a';
-            ctx.fillRect(0, ground.y, canvas.width, ground.height);
-
-            // Desenha Mario (frame fixo por simplicidade)
-            ctx.drawImage(marioSprite, 0, 0, 32, 48, mario.x, mario.y, 32, 48);
-
-            // Desenha Goombas
-            goombas.forEach(goomba => {
-                goomba.x += goomba.speedX;
-                ctx.drawImage(goombaSprite, goomba.x, goomba.y, 32, 32);
-            });
-
-            // Desenha blocos
-            blocks.forEach(block => {
-                ctx.drawImage(blockSprite, block.x, block.y, 64, 64);
-            });
-
-            requestAnimationFrame(gameLoop);
-        }
-
-        // Inicia o jogo quando as imagens carregarem
-        let loadedImages = 0;
-        function checkLoad() {
-            loadedImages++;
-            if (loadedImages === 3) gameLoop();
-        }
-        marioSprite.onload = checkLoad;
-        goombaSprite.onload = checkLoad;
-        blockSprite.onload = checkLoad;
-    </script>
+    <script src="game.js"></script>
 </body>
 </html>
