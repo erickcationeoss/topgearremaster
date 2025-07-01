@@ -1,45 +1,14 @@
 body {
     margin: 0;
     overflow: hidden;
+    background: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+#gameCanvas {
     background: #6b8cff;
-}
-
-#game {
-    width: 800px;
-    height: 400px;
-    position: relative;
-    margin: 0 auto;
-}
-
-#player {
-    position: absolute;
-    font-size: 40px;
-    bottom: 60px;
-    left: 50px;
-    z-index: 10;
-}
-
-.goomba {
-    position: absolute;
-    font-size: 30px;
-    bottom: 60px;
-    left: 500px;
-}
-
-.block {
-    position: absolute;
-    width: 60px;
-    height: 60px;
-    background: #c19a6b;
-    bottom: 120px;
-    left: 300px;
-    border: 2px solid #8b5a2b;
-}
-
-#ground {
-    position: absolute;
-    width: 100%;
-    height: 50px;
-    background: #6a4a3a;
-    bottom: 0;
+    border: 4px solid #333;
 }
