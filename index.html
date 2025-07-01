@@ -3,41 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mario Arcade</title>
+    <title>Mario Neon Arcade</title>
     <link rel="shortcut icon" href="assets/imgs/Mario-ico.ico" type="image/x-icon">
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="arcade-machine">
-        <div class="arcade-top">
-            <div class="marquee">
-                <span>SUPER MARIO BROS</span>
-            </div>
-            <div class="game-container">
-                <div class="game-board">
-                    <img src="assets/imgs/clouds.png" class="cloud">
-                    <img src="assets/imgs/mario.gif" class="mario">
-                    <img src="assets/imgs/pipe.png" class="pipe">
+    <div class="arcade-wrapper">
+        <!-- Estrutura do fliperama neon -->
+        <div class="arcade-body">
+            <div class="arcade-top">
+                <div class="marquee" data-text="SUPER MARIO BROS">
+                    <span>SUPER MARIO BROS</span>
+                </div>
+                <div class="screen-container">
+                    <!-- Área do jogo original - não alterar estrutura interna -->
+                    <div class="game-board">
+                        <img src="assets/imgs/clouds.png" class="cloud">
+                        <img src="assets/imgs/mario.gif" class="mario">
+                        <img src="assets/imgs/pipe.png" class="pipe">
+                    </div>
                 </div>
             </div>
-        </div>
-        
-        <div class="arcade-panel">
-            <div class="arcade-controls">
-                <div class="joystick">
-                    <div class="joystick-head"></div>
-                    <div class="joystick-base"></div>
-                </div>
-                <div class="action-buttons">
+            
+            <div class="control-panel">
+                <div class="joystick"></div>
+                <div class="buttons">
                     <div class="button red"></div>
                     <div class="button blue"></div>
                 </div>
+                <div class="coin-slot">INSERT COIN</div>
             </div>
-            <div class="coin-slot"></div>
         </div>
     </div>
 
+    <!-- Mantido igual ao original -->
     <div class="game-over">
         <button class="restart">REINICIAR</button>
     </div>
